@@ -1,0 +1,52 @@
+[project]
+name = "rag"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fire>=0.7.1",
+    "flake8>=7.3.0",
+    "flake8-bugbear>=25.11.29",
+    "flake8-pyproject",
+    "langchain>=1.2.17",
+    "langchain-community>=0.4.1",
+    "mypy>=1.19.1",
+    "pep8-naming>=0.15.1",
+    "pydantic>=2.12.5",
+    "tqdm>=4.67.3",
+]
+
+# "flake8-docstrings",
+
+[tool.mypy]
+exclude = [
+    "^\\.venv/",
+]
+# .関数はAnyで返せなくなる
+warn_return_any = true
+
+# .type: ignoreを警告する
+warn_unused_ignores = true
+
+# .外部ライブラリは検証外にする
+ignore_missing_imports = true
+
+# .型ヒントのない関数を警告する
+disallow_untyped_defs = true
+
+# .型ヒントのない関数の中身を検証する
+check_untyped_defs = true
+
+# strict = true
+
+[tool.flake8]
+# docstring-convention = "google"
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "test.py",
+    "__init__.py"
+]
