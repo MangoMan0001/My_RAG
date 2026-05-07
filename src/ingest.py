@@ -1,7 +1,8 @@
 # ※事前に `uv add langchain langchain-community` が必要ですわ！
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+import bm25s
+import sys
 
 def main() -> None:
     print("🧹 vLLMの森から、PythonとMarkdownのファイルだけを集めていますわ...")
@@ -16,7 +17,7 @@ def main() -> None:
 
     py_loader = DirectoryLoader(
         path="./vllm-0.10.1",
-        glob="**/*.md",
+        glob="**/*.py",
         loader_cls=TextLoader
     )
 
@@ -41,6 +42,36 @@ def main() -> None:
         print("-" * 50)
         print(chunks[0].page_content)
         print("="*50)
+
+    # --- (昨日のコード: chunks = text_splitter.split_documents(docs) の続き) ---
+
+    print("\n🧠 検索エンジン（BM25）の辞書を作りますわ！...")
+
+    # 1. チャンクの中から「テキスト本体」だけを抽出したリストを作りますの
+    corpus = [chunk.page_content for chunk in chunks]
+
+    # 2. テキストをBM25が理解できる「単語のリスト（トークン）」に分解！
+    corpus_tokens = bm25s.tokenize(corpus)
+
+    # 3. 辞書の作成（インデックス化）！
+    retriever = bm25s.BM25()
+    retriever.index(corpus_tokens)
+
+    print("✨ 辞書が完成いたしましたわ！検索テストを開始します！")
+
+    # 4. 試し斬り！クエリ（質問）の準備
+    query = "What is api_server?"
+    query_tokens = bm25s.tokenize([query])
+
+    # 5. 検索実行！（k=5 で上位5件を取得）
+    # results は見つかったテキスト、scores はその関連度スコアですの
+    results, scores = retriever.retrieve(query_tokens, k=5)
+
+    print("\n👑 【検索結果 トップ5】👇\n")
+    for i in range(5):
+        print(f"--- 🏅 第{i+1}位 (スコア: {scores[0][i]:.2f}) ---")
+        print(f"【メタデータ（出処）】: {chunks[results[0][i]].metadata}")
+        print(chunks[results[0][i]].page_content[:200])  # 長すぎるので最初の200文字だけ表示
 
 
 if __name__ == "__main__":

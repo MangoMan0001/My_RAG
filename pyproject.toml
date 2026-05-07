@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "bm25s>=0.3.8",
     "fire>=0.7.1",
     "flake8>=7.3.0",
     "flake8-bugbear>=25.11.29",
