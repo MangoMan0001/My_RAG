@@ -62,6 +62,7 @@ clean: ## 一時ファイルやキャッシュを削除
 	@rm -rf build
 	@rm -rf *.egg-info
 	@rm -rf .ruff_cache
+	@rm -rf data/processed
 	@echo "Clean complete."
 
 fclean: clean ## cleanに加えて仮想環境も削除
