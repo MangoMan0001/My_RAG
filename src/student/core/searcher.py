@@ -1,29 +1,94 @@
 import bm25s
+import json
+from .models import MinimalSource, MinimalSearchResults, StudentSearchResults
+from typing import Any
+import sys
+import os
 
-class BM25Sercher:
+
+class BM25Searcher:
     """BM25のインデックスを管理し、検索を行うクラス"""
 
-    def __init__(self, index_dir: str = "data/processed/bm25_index"):
-        pass
+    def __init__(self,
+                 index_dir: str) -> None:
+        # 検索に必要なindexとchunksを取得
+        self._minimal_search: MinimalSearchResults
+        self._minimal_search_list: list[MinimalSearchResults] = []
+        self._student_search: StudentSearchResults
+        self._retriever = bm25s.BM25.load(index_dir + "/bm25_index", mmap=True)
+        with open(index_dir + "/chunks/corpus.json",
+                  mode='r',
+                  encoding="utf-8") as f:
+            self._chunks = json.load(f)
 
-    def search(self, query: str, k: int) -> None:
-        print("✨ 辞書が完成いたしましたわ！検索テストを開始します！")
-
-        # 4. 試し斬り！クエリ（質問）の準備
-        query = "What is api_server?"
+    def search(self,
+               query: str,
+               k: int,
+               question_id: str) -> None:
+        # 1. クエリをトークン化
         query_tokens = bm25s.tokenize([query])
 
-        # 5. 検索実行！（k=5 で上位5件を取得）
-        # results は見つかったテキスト、scores はその関連度スコアですの
-        results, scores = retriever.retrieve(query_tokens, k=5)
+        # 2. 検索実行
+        # results は見つかったドキュメントID、scores はその関連度スコア
+        results, scores = self._retriever.retrieve(query_tokens, k=k)
+        minimal_list = []
+        for i in range(k):
+            chunk = self._chunks[results[0][i]]
+            meta = chunk['metadata']
+            last_i = meta['start_index'] + len(chunk['page_content'])
+            minimal = MinimalSource(file_path=meta['source'],
+                                    first_character_index=meta['start_index'],
+                                    last_character_index=last_i)
+            minimal_list.append(minimal)
+        self._minimal_search = MinimalSearchResults(question_id=question_id,
+                                                    question=query,
+                                                    retrieved_sources=minimal_list)
+        self._minimal_search_list.append(self._minimal_search)
+        self._student_search = StudentSearchResults(search_results=self._minimal_search_list,
+                                                    k=k)
 
-        # 5. ディレクトリに保存
+    def terminal_output(self) -> None:
+        "Output results terminl."
+        data = self._student_search.model_dump()
+        print(json.dumps(data, indent=4, ensure_ascii=False))
 
-        print("\n👑 【検索結果 トップ5】👇\n")
-        for i in range(5):
-            print(f"--- 🏅 第{i+1}位 (スコア: {scores[0][i]:.2f}) ---")
-            print(f"【メタデータ（出処）】: {chunks[results[0][i]].metadata}")
-            print(chunks[results[0][i]].page_content[:200])  # 長すぎるので最初の200文字だけ表示
+    def minimal_serch(self) -> MinimalSearchResults:
+        return self._minimal_search
+
+    def minimal_serch_list(self) -> list[MinimalSearchResults]:
+        return self._minimal_search_list
+
+    def student_search(self) -> StudentSearchResults:
+        return self._student_search
+
+
+class BM25DatasetSearcher(BM25Searcher):
+    """BM25のインデックスを管理し、検索を行うクラス"""
+
+    def __init__(self,
+                 index_dir: str) -> None:
+        super().__init__(index_dir=index_dir)
+
+    def data_search(self,
+                    dataset_path: str,
+                    k: int) -> None:
+        # get dataset
+        with open(dataset_path, 'r', encoding="utf-8") as f:
+            dataset = json.load(f)
+        self._dataset_path = dataset_path
+
+        # Run data search
+        for q_id, query in dataset.values():
+            self.search(query=query,
+                        k=k,
+                        question_id=q_id)
+
+    def output_json(self,
+                    save_directory: str) -> None:
+        "output results json"
+        os.makedirs(save_directory, exist_ok=True)
+        with open(save_directory + self._dataset_path.split('/')[-1], 'w', encoding='utf-8') as f:
+            json.dump(self._student_search.model_dump(), f, indent=4, ensure_ascii=False)
 
 
 if __name__ == "__main__":

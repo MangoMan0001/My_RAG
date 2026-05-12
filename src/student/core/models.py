@@ -26,6 +26,7 @@ class MinimalSearchResults(BaseModel):
     question: str
     retrieved_sources: list[MinimalSource]
 
+
 class MinimalAnswer(MinimalSearchResults):
     answer: str
 

@@ -1,5 +1,27 @@
 #!/usr/bin/env python3
+from pydantic import BaseModel
 from .core.indexer import BM25Indexer
+from .core.searcher import BM25Searcher, BM25DatasetSearcher
+import sys
+
+
+class IndexArgs(BaseModel):
+    max_chunk_size: int
+    index_dir: str
+
+
+class SearchArgs(BaseModel):
+    query: str
+    k: int
+    index_dir: str
+    question_id: str
+
+
+class SearchDatasetArgs(BaseModel):
+    dataset_path: str
+    k: int
+    save_directory: str
+    index_dir: str
 
 
 class RAGCLI:
@@ -11,30 +33,74 @@ class RAGCLI:
         """
         リポジトリのファイルを読み込み、インデックスを作成しますの。
         """
-        print(f"Starting to create an index. chunk_size: {max_chunk_size}")
-        indexer = BM25Indexer()
-        indexer.indexer(max_chunk_size,
-                        index_dir)
-        print(f"✅ Ingestion complete! Indices saved under {index_dir}")
+        try:
+            args = IndexArgs(max_chunk_size=max_chunk_size,
+                             index_dir=index_dir)
+            max_chunk_size = args.max_chunk_size
+            index_dir = args.index_dir
+            print(f"Starting to create an index. chunk_size: {max_chunk_size}")
+            indexer = BM25Indexer()
+            indexer.indexer(max_chunk_size,
+                            index_dir)
+            print(f"✅ Ingestion complete! Indices saved under {index_dir}")
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def search(self,
                query: str,
-               k: int = 5) -> None:
+               k: int = 5,
+               index_dir: str = "data/processed",
+               question_id: str = "q1") -> None:
         """
         単一の質問に対して検索を行いますの。
         """
-        print(f"質問: '{query}' に対して上位 {k} 件を検索しますわ...")
-        # TODO: rag_core.searcher から検索処理を呼び出す
+        try:
+            args = SearchArgs(query=query,
+                              k=k,
+                              index_dir=index_dir,
+                              question_id=question_id)
+            query = args.query
+            k = args.k
+            index_dir = args.index_dir
+            question_id = args.question_id
+            print(f"Searching for the top {k} results for '{query}'")
+            searcher = BM25Searcher(index_dir=index_dir)
+            searcher.search(query=query,
+                            k=k,
+                            question_id=question_id)
+            searcher.terminal_output()
+            print("✅ Serching complete!")
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def search_dataset(self,
-                       dataset_path: str,
+                       dataset_path: str = 'data/datasets/UnansweredQuestions/dataset_docs_public.json',
                        k: int = 5,
-                       save_directory: str = "data/output") -> None:
+                       save_directory: str = "data/output/search_results",
+                       index_dir: str = "data/processed") -> None:
         """
         データセットの複数の質問に対して一括で検索を行いますの。
         """
-        print(f"データセット '{dataset_path}' の検索を開始しますわ...")
-        # TODO: バッチ検索処理の実装
+        try:
+            args = SearchDatasetArgs(dataset_path=dataset_path,
+                                     k=k,
+                                     save_directory=save_directory,
+                                     index_dir=index_dir)
+            dataset_path = args.dataset_path
+            k = args.k
+            save_directory = args.save_directory
+            index_dir = args.index_dir
+            print(f"データセット '{dataset_path}' の検索を開始しますわ...")
+            searcher = BM25DatasetSearcher(index_dir=index_dir)
+            searcher.data_search(dataset_path=dataset_path,
+                                 k=k)
+            searcher.output_json(save_directory=save_directory)
+
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def answer(self,
                query: str,

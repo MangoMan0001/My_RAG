@@ -9,7 +9,7 @@ import os
 
 class BM25Indexer:
 
-    def __init__(self, data_dir: str = "./data/raw/vllm-0.10.1"):
+    def __init__(self, data_dir: str = "./data/raw/vllm-0.10.1"):  # ここですべてのファイルを読み込めるようにする必要あり
         # 1. Prepare loadder
         self._md_loader = DirectoryLoader(
             path=data_dir,
@@ -51,8 +51,6 @@ class BM25Indexer:
             json.dump(dict_chunks, f, ensure_ascii=False, indent=4)
 
         # === Creat Index ===
-        print('=' * 20)
-        print("\n🧠 build a dictionary (BM25)")
 
         # Setting Stemmer
         stemmer = Stemmer.Stemmer('english')
@@ -61,12 +59,14 @@ class BM25Indexer:
         corpus = [chunk.page_content for chunk in chunks]
 
         # 2. encode corpus
-        # stopwordsはa is theなど無視していい単語を設定する
+        # stopwords exclude=a, is, the...
         corpus_tokens = bm25s.tokenize(corpus, stopwords='en', stemmer=stemmer)
 
         # 3. Generate index
         retriever = bm25s.BM25()
         retriever.index(corpus_tokens)
+        print(f"🧷 index: {len(retriever.vocab_dict.keys())}")
+        print('=' * 20)
 
         # 4. Save the index
         os.makedirs(index_dir + '/bm25_index', exist_ok=True)
