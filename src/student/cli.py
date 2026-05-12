@@ -92,7 +92,7 @@ class RAGCLI:
             k = args.k
             save_directory = args.save_directory
             index_dir = args.index_dir
-            print(f"データセット '{dataset_path}' の検索を開始しますわ...")
+            print(f"search the dataset '{dataset_path}'")
             searcher = BM25DatasetSearcher(index_dir=index_dir)
             searcher.data_search(dataset_path=dataset_path,
                                  k=k)

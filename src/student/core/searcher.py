@@ -72,13 +72,14 @@ class BM25DatasetSearcher(BM25Searcher):
     def data_search(self,
                     dataset_path: str,
                     k: int) -> None:
-        # get dataset
+        # get datasets
         with open(dataset_path, 'r', encoding="utf-8") as f:
-            dataset = json.load(f)
+            datasets = list(json.load(f).values())[0]
         self._dataset_path = dataset_path
 
         # Run data search
-        for q_id, query in dataset.values():
+        for dataset in datasets:
+            q_id, query = dataset.values()
             self.search(query=query,
                         k=k,
                         question_id=q_id)
@@ -87,8 +88,11 @@ class BM25DatasetSearcher(BM25Searcher):
                     save_directory: str) -> None:
         "output results json"
         os.makedirs(save_directory, exist_ok=True)
-        with open(save_directory + self._dataset_path.split('/')[-1], 'w', encoding='utf-8') as f:
+        filename = os.path.basename(self._dataset_path)
+        save_path = os.path.join(save_directory, filename)
+        with open(save_path, 'w', encoding='utf-8') as f:
             json.dump(self._student_search.model_dump(), f, indent=4, ensure_ascii=False)
+        print(f"Saved student_search_results to {save_path}")
 
 
 if __name__ == "__main__":
