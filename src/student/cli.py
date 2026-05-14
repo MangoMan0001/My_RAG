@@ -2,6 +2,7 @@
 from pydantic import BaseModel
 from .core.indexer import BM25Indexer
 from .core.searcher import BM25Searcher, BM25DatasetSearcher
+from .core.answer import LLMAnswer, LLMDatasetsAnswer
 import sys
 
 
@@ -22,6 +23,16 @@ class SearchDatasetArgs(BaseModel):
     k: int
     save_directory: str
     index_dir: str
+
+
+class AnswerArgs(BaseModel):
+    query: str
+    k: int
+
+
+class AnswerDatasetArgs(BaseModel):
+    student_search_results_path: str
+    save_directory: str
 
 
 class RAGCLI:
@@ -104,11 +115,24 @@ class RAGCLI:
 
     def answer(self,
                query: str,
-               k: int = 5) -> None:
+               k: int = 5,
+               index_dir: str = "data/processed") -> None:
         """
         単一の質問に対して、検索したコンテキストを用いて回答を生成しますの。
         """
-        pass  # TODO: 回答生成処理の実装
+        try:
+            args = AnswerArgs(query=query, k=k)
+            query = args.query
+            k = args.k
+            print(f"answer the query '{query}'")
+            searcher = BM25Searcher(index_dir=index_dir)
+            searcher.search(query=query, k=k)
+            answer = LLMAnswer()
+            answer.answer(search_result=searcher.minimal_serch, k=k)
+            answer.terminal_output()
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def answer_dataset(self,
                        student_search_results_path: str,
@@ -116,7 +140,23 @@ class RAGCLI:
         """
         検索結果ファイルをもとに、データセット全体の回答を生成しますの。
         """
-        pass  # TODO: バッチ回答生成処理の実装
+        try:
+            args = AnswerDatasetArgs(
+                student_search_results_path=student_search_results_path,
+                save_directory=save_directory
+            )
+            student_search_results_path = args.student_search_results_path
+            save_directory = args.save_directory
+            answer = LLMDatasetsAnswer()
+            answer.data_answer(student_search_results_path=student_search_results_path)
+            answer.output_json(save_directory=save_directory)
+
+            print("Loaded 100 questions from data/output/search_results/dataset_docs_public.json\n"
+                  "Processed 100 of 100 questions\n"
+                  "Saved student_search_results_and_answer to data/output/search_results_and_answer/dataset_docs_public.json")
+        except Exception as e:
+            print(e)
+            sys.exit(1)
 
     def evaluate(self,
                  student_answer_path: str,

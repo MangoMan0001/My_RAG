@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+import uuid
 
 
 class MinimalSource(BaseModel):

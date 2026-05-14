@@ -1,8 +1,10 @@
 import bm25s
 import json
-from .models import MinimalSource, MinimalSearchResults, StudentSearchResults
-from typing import Any
-import sys
+from .models import (MinimalSource,
+                     MinimalSearchResults,
+                     StudentSearchResults,
+                     UnansweredQuestion,
+                     RagDataset)
 import os
 
 
@@ -24,7 +26,7 @@ class BM25Searcher:
     def search(self,
                query: str,
                k: int,
-               question_id: str) -> None:
+               question_id: str = '') -> None:
         # 1. クエリをトークン化
         query_tokens = bm25s.tokenize([query])
 
@@ -40,8 +42,9 @@ class BM25Searcher:
                                     first_character_index=meta['start_index'],
                                     last_character_index=last_i)
             minimal_list.append(minimal)
-        self._minimal_search = MinimalSearchResults(question_id=question_id,
-                                                    question=query,
+        question = UnansweredQuestion(question=query, question_id=question_id)
+        self._minimal_search = MinimalSearchResults(question_id=question.question_id,
+                                                    question=question.question,
                                                     retrieved_sources=minimal_list)
         self._minimal_search_list.append(self._minimal_search)
         self._student_search = StudentSearchResults(search_results=self._minimal_search_list,
@@ -52,12 +55,15 @@ class BM25Searcher:
         data = self._student_search.model_dump()
         print(json.dumps(data, indent=4, ensure_ascii=False))
 
+    @property
     def minimal_serch(self) -> MinimalSearchResults:
         return self._minimal_search
 
+    @property
     def minimal_serch_list(self) -> list[MinimalSearchResults]:
         return self._minimal_search_list
 
+    @property
     def student_search(self) -> StudentSearchResults:
         return self._student_search
 
@@ -73,16 +79,16 @@ class BM25DatasetSearcher(BM25Searcher):
                     dataset_path: str,
                     k: int) -> None:
         # get datasets
-        with open(dataset_path, 'r', encoding="utf-8") as f:
-            datasets = list(json.load(f).values())[0]
         self._dataset_path = dataset_path
+        with open(dataset_path, 'r', encoding="utf-8") as f:
+            raw_data = json.load(f)
+        datasets = RagDataset.model_validate(raw_data)
 
         # Run data search
-        for dataset in datasets:
-            q_id, query = dataset.values()
-            self.search(query=query,
+        for dataset in datasets.rag_questions:
+            self.search(query=dataset.question,
                         k=k,
-                        question_id=q_id)
+                        question_id=dataset.question)
 
     def output_json(self,
                     save_directory: str) -> None:
@@ -90,8 +96,10 @@ class BM25DatasetSearcher(BM25Searcher):
         os.makedirs(save_directory, exist_ok=True)
         filename = os.path.basename(self._dataset_path)
         save_path = os.path.join(save_directory, filename)
+
         with open(save_path, 'w', encoding='utf-8') as f:
             json.dump(self._student_search.model_dump(), f, indent=4, ensure_ascii=False)
+
         print(f"Saved student_search_results to {save_path}")
 
 
