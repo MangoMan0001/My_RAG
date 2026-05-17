@@ -88,7 +88,7 @@ class BM25DatasetSearcher(BM25Searcher):
         for dataset in datasets.rag_questions:
             self.search(query=dataset.question,
                         k=k,
-                        question_id=dataset.question)
+                        question_id=dataset.question_id)
 
     def output_json(self,
                     save_directory: str) -> None:

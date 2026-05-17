@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from .core.indexer import BM25Indexer
 from .core.searcher import BM25Searcher, BM25DatasetSearcher
 from .core.answer import LLMAnswer, LLMDatasetsAnswer
+from .core.evaluater import BM25Evaluater
 import sys
 
 
@@ -33,6 +34,13 @@ class AnswerArgs(BaseModel):
 class AnswerDatasetArgs(BaseModel):
     student_search_results_path: str
     save_directory: str
+
+
+class EvaluaterArgs(BaseModel):
+    student_answer_path: str
+    dataset_path: str
+    k: int
+    max_context_length: int
 
 
 class RAGCLI:
@@ -151,18 +159,37 @@ class RAGCLI:
             answer.data_answer(student_search_results_path=student_search_results_path)
             answer.output_json(save_directory=save_directory)
 
-            print("Loaded 100 questions from data/output/search_results/dataset_docs_public.json\n"
-                  "Processed 100 of 100 questions\n"
-                  "Saved student_search_results_and_answer to data/output/search_results_and_answer/dataset_docs_public.json")
+            print(f"Loaded 100 questions from {student_search_results_path}\n"
+                  f"Processed 100 of 100 questions\n"
+                  f"Saved student_search_results_and_answer to {save_directory}")
         except Exception as e:
             print(e)
             sys.exit(1)
 
     def evaluate(self,
                  student_answer_path: str,
-                 dataset_path: str, k: int = 5,
+                 dataset_path: str,
+                 k: int,
                  max_context_length: int = 2000) -> None:
         """
         検索結果をグラウンドトゥルース（正解データ）と比較して評価しますの。
         """
-        pass  # TODO: 評価処理の実装
+        try:
+            args = EvaluaterArgs(
+                student_answer_path=student_answer_path,
+                dataset_path=dataset_path,
+                k=k,
+                max_context_length=max_context_length
+            )
+            student_answer_path = args.student_answer_path
+            dataset_path = args.dataset_path
+            k = args.k
+            max_context_length = args.max_context_length
+            evaluater = BM25Evaluater(student_answer_path=student_answer_path,
+                                      dataset_path=dataset_path)
+            evaluater.evaluate(k=k,
+                               max_context_length=max_context_length)
+
+        except Exception as e:
+            print(e)
+            sys.exit(1)

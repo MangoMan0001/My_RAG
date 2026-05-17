@@ -48,7 +48,7 @@ class LLMAnswer:
         "promptを作成"
         context_tokens = self.tokenizer.encode(raw_context)
 
-        if len(context_tokens) > 3000:
+        if len(context_tokens) > 2000:
             safe_context = self.tokenizer.decode(context_tokens[:1500], skip_special_tokens=True)
         else:
             safe_context = raw_context
