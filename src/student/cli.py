@@ -44,13 +44,13 @@ class EvaluaterArgs(BaseModel):
 
 
 class RAGCLI:
-    """RAGシステムを操作するためのコマンドラインインターフェースですわ。"""
+    """RAGシステムを操作するためのコマンドラインインターフェースです。"""
 
     def index(self,
               max_chunk_size: int = 2000,
               index_dir: str = "data/processed") -> None:
         """
-        リポジトリのファイルを読み込み、インデックスを作成しますの。
+        リポジトリのファイルを読み込み、インデックスを作成します。
         """
         try:
             args = IndexArgs(max_chunk_size=max_chunk_size,
@@ -68,11 +68,11 @@ class RAGCLI:
 
     def search(self,
                query: str,
-               k: int = 5,
+               k: int = 10,
                index_dir: str = "data/processed",
                question_id: str = "q1") -> None:
         """
-        単一の質問に対して検索を行いますの。
+        単一の質問に対して検索を行います。
         """
         try:
             args = SearchArgs(query=query,
@@ -96,11 +96,11 @@ class RAGCLI:
 
     def search_dataset(self,
                        dataset_path: str = 'data/datasets/UnansweredQuestions/dataset_docs_public.json',
-                       k: int = 5,
+                       k: int = 10,
                        save_directory: str = "data/output/search_results",
                        index_dir: str = "data/processed") -> None:
         """
-        データセットの複数の質問に対して一括で検索を行いますの。
+        データセットの複数の質問に対して一括で検索を行います。
         """
         try:
             args = SearchDatasetArgs(dataset_path=dataset_path,
@@ -123,10 +123,10 @@ class RAGCLI:
 
     def answer(self,
                query: str,
-               k: int = 5,
+               k: int = 10,
                index_dir: str = "data/processed") -> None:
         """
-        単一の質問に対して、検索したコンテキストを用いて回答を生成しますの。
+        単一の質問に対して、検索したコンテキストを用いて回答を生成します。
         """
         try:
             args = AnswerArgs(query=query, k=k)
@@ -143,10 +143,10 @@ class RAGCLI:
             sys.exit(1)
 
     def answer_dataset(self,
-                       student_search_results_path: str,
+                       student_search_results_path: str = "data/output/search_results/dataset_docs_public.json",
                        save_directory: str = "data/output") -> None:
         """
-        検索結果ファイルをもとに、データセット全体の回答を生成しますの。
+        検索結果ファイルをもとに、データセット全体の回答を生成します。
         """
         try:
             args = AnswerDatasetArgs(
@@ -167,12 +167,12 @@ class RAGCLI:
             sys.exit(1)
 
     def evaluate(self,
-                 student_answer_path: str,
-                 dataset_path: str,
-                 k: int,
+                 student_answer_path: str = "data/output/search_results/dataset_docs_public.json",
+                 dataset_path: str = "data/datasets/AnsweredQuestions/dataset_docs_public.json",
+                 k: int = 10,
                  max_context_length: int = 2000) -> None:
         """
-        検索結果をグラウンドトゥルース（正解データ）と比較して評価しますの。
+        検索結果をグラウンドトゥルース（正解データ）と比較して評価します。
         """
         try:
             args = EvaluaterArgs(

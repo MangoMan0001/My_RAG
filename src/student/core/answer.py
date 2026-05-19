@@ -2,7 +2,6 @@ import torch
 import json
 from tqdm import tqdm
 import os
-import sys
 from .models import (MinimalSource,
                      MinimalSearchResults,
                      MinimalAnswer,
