@@ -24,7 +24,7 @@ class RagDataset(BaseModel):
 
 class MinimalSearchResults(BaseModel):
     question_id: str
-    question: str
+    question_str: str
     retrieved_sources: list[MinimalSource]
 
 
@@ -37,8 +37,9 @@ class StudentSearchResults(BaseModel):
     k: int
 
 
-class StudentSearchResultsAndAnswer(StudentSearchResults):
+class StudentSearchResultsAndAnswer(BaseModel):
     search_results: list[MinimalAnswer]
+    k: int
 
 
 if __name__ == "__main__":

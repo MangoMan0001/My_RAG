@@ -1,6 +1,6 @@
-# ※事前に `uv add langchain langchain-community` が必要ですわ！
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import (RecursiveCharacterTextSplitter,
+                                      Language)
 import bm25s
 import Stemmer
 import json
@@ -22,6 +22,11 @@ class BM25Indexer:
             glob="**/*.py",
             loader_cls=TextLoader
         )
+        self._headers_to_split_on = [
+            ("#", "Header 1"),
+            ("##", "Header 2"),
+            ("###", "Header 3"),
+        ]
 
     def indexer(self,
                 max_chunk_size: int,
@@ -29,18 +34,50 @@ class BM25Indexer:
         # === Creat Chunk ===
         print('=' * 20)
 
-        docs = self._md_loader.load() + self._py_loader.load()
+        md_docs = self._md_loader.load()
+        py_docs = self._py_loader.load()
+        docs = md_docs + py_docs
         print(f"📄 Files: {len(docs)}")
 
         # 2. Prepare splitter
-        text_splitter = RecursiveCharacterTextSplitter(
+        # text_splitter = RecursiveCharacterTextSplitter(
+        #     chunk_size=max_chunk_size,
+        #     chunk_overlap=0,
+        #     add_start_index=True
+        # )
+
+        # 2. Prepare splitter
+        py_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=Language.PYTHON,
             chunk_size=max_chunk_size,
-            chunk_overlap=0,
+            chunk_overlap=100,
+            add_start_index=True
+        )
+        md_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=Language.MARKDOWN,
+            chunk_size=max_chunk_size,
+            chunk_overlap=100,
             add_start_index=True
         )
 
+        # md_splitter = MarkdownHeaderTextSplitter(
+        #     headers_to_split_on=self._headers_to_split_on,
+        #     add_start_index=True)
+
+        # md_chunks = []
+        # import sys
+        # for doc in md_docs:
+
+        #     text = doc.page_content
+
+        #     md_chunks = md_splitter.split_text(text)
+        #     for chunk in md_chunks:
+        #         chunk.metadata.update(doc.metadata)
+        md_chunks = md_splitter.split_documents(md_docs)
+        py_chunks = py_splitter.split_documents(py_docs)
+        chunks = md_chunks + py_chunks
+
         # 3. splitt！
-        chunks = text_splitter.split_documents(docs)
         print(f"✂️ Chunks: {len(chunks)}")
 
         # 4. Save Chunks

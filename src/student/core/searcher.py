@@ -6,6 +6,7 @@ from .models import (MinimalSource,
                      UnansweredQuestion,
                      RagDataset)
 import os
+import Stemmer
 
 
 class BM25Searcher:
@@ -27,8 +28,11 @@ class BM25Searcher:
                query: str,
                k: int,
                question_id: str = '') -> None:
+        # Setting Stemmer
+        stemmer = Stemmer.Stemmer('english')
+
         # 1. クエリをトークン化
-        query_tokens = bm25s.tokenize([query])
+        query_tokens = bm25s.tokenize([query], stopwords='en', stemmer=stemmer)
 
         # 2. 検索実行
         # results は見つかったドキュメントID、scores はその関連度スコア
@@ -44,7 +48,7 @@ class BM25Searcher:
             minimal_list.append(minimal)
         question = UnansweredQuestion(question=query, question_id=question_id)
         self._minimal_search = MinimalSearchResults(question_id=question.question_id,
-                                                    question=question.question,
+                                                    question_str=question.question,
                                                     retrieved_sources=minimal_list)
         self._minimal_search_list.append(self._minimal_search)
         self._student_search = StudentSearchResults(search_results=self._minimal_search_list,

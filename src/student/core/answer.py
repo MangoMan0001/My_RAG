@@ -56,8 +56,10 @@ class LLMAnswer:
             "You are a strict, helpful AI assistant answering questions about a codebase.\n"
             "Rule 1: Answer ONLY based on the provided Context. Do NOT hallucinate.\n"
             "Rule 2: Your answer must be self-contained and directly answer the question.\n"
-            "Rule 3: You MUST cite the source file for every fact. Format your citation exactly like this: (Source: [file_path]).\n"
-            "Rule 4: Stop generating text immediately after you have answered the question. Do NOT add any extra explanations or code blocks."
+            "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
+            "like this: (Source: [file_path]).\n"
+            "Rule 4: Stop generating text immediately after you have answered the question."
+            " Do NOT add any extra explanations or code blocks."
             "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
         )
         return f"{system_prompt}\n\nContext:\n{safe_context}\n\nQuestion: {question}\nAnswer:"
@@ -71,7 +73,7 @@ class LLMAnswer:
         # 1. コンテキスト（検索結果）の復元
         raw_context = self._extract_context(search_result.retrieved_sources)
 
-        prompt = self._build_prompt(raw_context, search_result.question)
+        prompt = self._build_prompt(raw_context, search_result.question_str)
 
         # 3. 推論の実行（ここにはもう長すぎるテキストは入りませんわ！）
         # pytorch型のtensorに入れる。modelに送る.
@@ -99,7 +101,7 @@ class LLMAnswer:
         # 5. 結果を返す
         self._minimal_answer_list.append(MinimalAnswer(
             question_id=search_result.question_id,
-            question=search_result.question,
+            question_str=search_result.question_str,
             retrieved_sources=search_result.retrieved_sources,
             answer=answer_text
         ))
@@ -129,7 +131,6 @@ class LLMDatasetsAnswer(LLMAnswer):
         datasets = StudentSearchResults.model_validate(raw_data)
         for dataset in tqdm(datasets.search_results, desc='Current status: Generating'):
             self.answer(search_result=dataset, k=datasets.k)
-            break
 
     def output_json(self,
                     save_directory: str) -> None:

@@ -1,16 +1,7 @@
 import json
-from tqdm import tqdm
-import os
-import sys
-from .models import (MinimalSource,
-                     MinimalSearchResults,
-                     MinimalAnswer,
-                     AnsweredQuestion,
-                     UnansweredQuestion,
+from .models import (AnsweredQuestion,
                      RagDataset,
-                     StudentSearchResults,
-                     StudentSearchResultsAndAnswer)
-from transformers import AutoTokenizer, AutoModelForCausalLM
+                     StudentSearchResults)
 
 
 class BM25Evaluater:
@@ -59,7 +50,7 @@ class BM25Evaluater:
             for true_source in dataset.sources:
                 source_count += 1
                 for i, user_source in enumerate(answer.retrieved_sources):
-                    if k < i:
+                    if k <= i:
                         break
                     if true_source.file_path != user_source.file_path:
                         # print('ファイルが違う')

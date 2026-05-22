@@ -17,6 +17,7 @@ dependencies = [
     "flake8-pyproject",
     "langchain>=1.2.17",
     "langchain-community>=0.4.1",
+    "langchain-unstructured>=1.0.1",
     "mypy>=1.19.1",
     "pep8-naming>=0.15.1",
     "pydantic>=2.12.5",

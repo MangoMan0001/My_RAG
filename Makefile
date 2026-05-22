@@ -6,7 +6,7 @@
 NAME        = rag
 MAIN_SCRIPT = rag.py
 
-MAIN_DERECTRY = src
+MAIN_DERECTRY = student
 
 # ==========================================
 #  Rules
