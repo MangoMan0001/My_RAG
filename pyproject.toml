@@ -25,9 +25,10 @@ dependencies = [
     "torch>=2.11.0",
     "tqdm>=4.67.3",
     "transformers>=5.8.0",
+	"flake8-docstrings"
 ]
 
-# "flake8-docstrings",
+#
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/student"]
@@ -54,7 +55,7 @@ check_untyped_defs = true
 # strict = true
 
 [tool.flake8]
-# docstring-convention = "google"
+docstring-convention = "google"
 exclude = [
     ".git",
     "__pycache__",

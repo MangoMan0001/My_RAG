@@ -1,3 +1,5 @@
+"""RAGシステムにおけるLLM（大規模言語モデル）を用いた回答生成モジュール."""
+
 import torch
 import json
 from tqdm import tqdm
@@ -11,10 +13,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 class LLMAnswer:
-    """モデルを読み込み単一のプロンプトに回答する"""
+    """単一の質問に対し、LLMを用いて回答を生成するベースクラス."""
 
     def __init__(self, model_id: str = "Qwen/Qwen3-0.6B") -> None:
+        """LLMAnswerクラスの初期化.
 
+        Args:
+            model_id (str): 使用するHugging FaceのモデルID。デフォルトは "Qwen/Qwen3-0.6B"。
+        """
         self._student_answer: StudentSearchResultsAndAnswer
         self._minimal_answer_list: list[MinimalAnswer] = []
         self.tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -28,7 +34,14 @@ class LLMAnswer:
         self.model.eval()  # type: ignore
 
     def _extract_context(self, sources: list[MinimalSource]) -> str:
-        """検索結果のインデックス情報から、実際のテキストを切り出して結合しますわ。"""
+        """検索結果の情報源リストから、該当するテキスト部分を抽出して結合する.
+
+        Args:
+            sources (list[MinimalSource]): 検索で得られた情報源のリスト。
+
+        Returns:
+            str: プロンプトに埋め込むための、抽出・結合されたコンテキスト文字列。
+        """
         context_parts = []
         for src in sources:
             try:
@@ -44,7 +57,15 @@ class LLMAnswer:
     def _build_prompt(self,
                       raw_context: str,
                       question: str) -> str:
-        "promptを作成"
+        """LLMに入力するためのシステムプロンプト、コンテキスト、質問を構築する.
+
+        Args:
+            raw_context (str): 情報源から抽出された生のコンテキスト文字列。
+            question (str): ユーザーからの質問テキスト。
+
+        Returns:
+            str: LLMに入力する最終的なプロンプト文字列。
+        """
         context_tokens = self.tokenizer.encode(raw_context)
 
         if len(context_tokens) > 2000:
@@ -68,8 +89,13 @@ class LLMAnswer:
                search_result: MinimalSearchResults,
                k: int,
                max_new_tokens: int = 512) -> None:
-        """1つの質問に対して回答を生成しますわ。"""
+        """単一の検索結果オブジェクトを受け取り、LLMを用いた回答生成を実行する.
 
+        Args:
+            search_result (MinimalSearchResults): 回答の元となる検索結果と質問を含むオブジェクト。
+            k (int): 検索フェーズで指定されたkの値。
+            max_new_tokens (int, optional): LLMが新しく生成する最大トークン数。デフォルトは512。
+        """
         # 1. コンテキスト（検索結果）の復元
         raw_context = self._extract_context(search_result.retrieved_sources)
 
@@ -112,18 +138,34 @@ class LLMAnswer:
         )
 
     def terminal_output(self) -> None:
-        "Output results terminl."
+        """現在保持している回答結果をJSON文字列としてターミナルに出力する."""
         data = self._student_answer.model_dump()
         print(json.dumps(data, indent=4, ensure_ascii=False))
 
 
 class LLMDatasetsAnswer(LLMAnswer):
-    """モデルを読み込みプロンプトに回答する"""
+    """データセット（複数質問）に対する一括回答生成処理を担当するクラス.
+
+    検索済みのデータセット（JSONファイル）を読み込み、
+    含まれるすべての質問に対して連続で回答生成を実行してファイルに保存します。
+    """
 
     def __init__(self, model_id: str = "Qwen/Qwen3-0.6B") -> None:
+        """LLMDatasetsAnswerクラスの初期化.
+
+        親クラスの初期化処理を呼び出し、モデルのロードを行います。
+
+        Args:
+            model_id (str): 使用するHugging FaceのモデルID。デフォルトは "Qwen/Qwen3-0.6B"。
+        """
         super().__init__(model_id=model_id)
 
     def data_answer(self, student_search_results_path: str) -> None:
+        """検索結果データセットを読み込み、すべての質問に対して一括で回答を生成する.
+
+        Args:
+            student_search_results_path (str): 検索フェーズで出力されたJSONファイルのパス。
+        """
         # get datasets
         self._dataset_path = student_search_results_path
         with open(self._dataset_path, 'r', encoding="utf-8") as f:
@@ -134,7 +176,11 @@ class LLMDatasetsAnswer(LLMAnswer):
 
     def output_json(self,
                     save_directory: str) -> None:
-        "output results json"
+        """蓄積された一括回答結果をJSONファイルとして保存する.
+
+        Args:
+            save_directory (str): 成果物となるJSONファイルを保存するディレクトリのパス。
+        """
         os.makedirs(save_directory, exist_ok=True)
         filename = os.path.basename(self._dataset_path)
         save_path = os.path.join(save_directory, filename)

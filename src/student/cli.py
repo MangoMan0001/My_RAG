@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Command-line interface module managing the RAG system pipeline."""
+
 from pydantic import BaseModel
 from .core.indexer import BM25Indexer
 from .core.searcher import BM25Searcher, BM25DatasetSearcher
@@ -8,11 +10,13 @@ import sys
 
 
 class IndexArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the index command."""
     max_chunk_size: int
     index_dir: str
 
 
 class SearchArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the search command."""
     query: str
     k: int
     index_dir: str
@@ -20,6 +24,7 @@ class SearchArgs(BaseModel):
 
 
 class SearchDatasetArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the search_dataset command."""
     dataset_path: str
     k: int
     save_directory: str
@@ -27,16 +32,19 @@ class SearchDatasetArgs(BaseModel):
 
 
 class AnswerArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the answer command."""
     query: str
     k: int
 
 
 class AnswerDatasetArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the answer_dataset command."""
     student_search_results_path: str
     save_directory: str
 
 
 class EvaluaterArgs(BaseModel):
+    """Pydantic model for validating and managing arguments of the evaluate command."""
     student_answer_path: str
     dataset_path: str
     k: int
@@ -44,13 +52,16 @@ class EvaluaterArgs(BaseModel):
 
 
 class RAGCLI:
-    """RAGシステムを操作するためのコマンドラインインターフェースです。"""
+    """CLI class managing the RAG (Retrieval-Augmented Generation) system pipeline."""
 
     def index(self,
               max_chunk_size: int = 2000,
               index_dir: str = "data/processed") -> None:
-        """
-        リポジトリのファイルを読み込み、インデックスを作成します。
+        """Read Markdown and Python files, split them into chunks, and create a BM25 index.
+
+        Args:
+            max_chunk_size (int, optional): Maximum characters per chunk. Defaults to 2000.
+            index_dir (str, optional): Directory path to save the created index. Defaults to "data/processed".
         """
         try:
             args = IndexArgs(max_chunk_size=max_chunk_size,
@@ -68,11 +79,16 @@ class RAGCLI:
 
     def search(self,
                query: str,
-               k: int = 10,
+               k: int = 5,
                index_dir: str = "data/processed",
                question_id: str = "q1") -> None:
-        """
-        単一の質問に対して検索を行います。
+        """Search for the most relevant documents for a single query using the BM25 index.
+
+        Args:
+            query (str): The query string to search for.
+            k (int, optional): Maximum number of search result chunks to retrieve. Defaults to 5.
+            index_dir (str, optional): Directory path where the target index is stored. Defaults to "data/processed".
+            question_id (str, optional): Question ID to associate with the results. Defaults to "q1".
         """
         try:
             args = SearchArgs(query=query,
@@ -99,8 +115,16 @@ class RAGCLI:
                        k: int = 10,
                        save_directory: str = "data/output/search_results",
                        index_dir: str = "data/processed") -> None:
-        """
-        データセットの複数の質問に対して一括で検索を行います。
+        """Execute batch searches for all questions in the dataset and save the results as a JSON file.
+
+        Args:
+            dataset_path (str, optional): File path to the dataset (JSON format) containing questions.
+                Defaults to 'data/datasets/UnansweredQuestions/dataset_docs_public.json'.
+            k (int, optional): Maximum number of chunks to retrieve for each question. Defaults to 10.
+            save_directory (str, optional): Directory path to save the search results.
+                Defaults to "data/output/search_results".
+            index_dir (str, optional): Directory path where the target index is stored.
+                Defaults to "data/processed".
         """
         try:
             args = SearchDatasetArgs(dataset_path=dataset_path,
@@ -125,8 +149,13 @@ class RAGCLI:
                query: str,
                k: int = 10,
                index_dir: str = "data/processed") -> None:
-        """
-        単一の質問に対して、検索したコンテキストを用いて回答を生成します。
+        """Generate a direct answer using an LLM based on the search results for a single query.
+
+        Args:
+            query (str): The query string for the LLM to answer.
+            k (int, optional): Maximum number of chunks to use as context for answer generation. Defaults to 10.
+            index_dir (str, optional): Directory path where the target index is stored.
+                Defaults to "data/processed".
         """
         try:
             args = AnswerArgs(query=query, k=k)
@@ -145,8 +174,13 @@ class RAGCLI:
     def answer_dataset(self,
                        student_search_results_path: str = "data/output/search_results/dataset_docs_public.json",
                        save_directory: str = "data/output") -> None:
-        """
-        検索結果ファイルをもとに、データセット全体の回答を生成します。
+        """Generate and save answers in batch for all questions in the dataset based on the search results.
+
+        Args:
+            student_search_results_path (str): File path of the search results (JSON format) output by the engine.
+                Defaults to "data/output/search_results/dataset_docs_public.json".
+            save_directory (str, optional): Directory path to save the final results including the LLM answers.
+                Defaults to "data/output".
         """
         try:
             args = AnswerDatasetArgs(
@@ -171,8 +205,16 @@ class RAGCLI:
                  dataset_path: str = "data/datasets/AnsweredQuestions/dataset_docs_public.json",
                  k: int = 10,
                  max_context_length: int = 2000) -> None:
-        """
-        検索結果をグラウンドトゥルース（正解データ）と比較して評価します。
+        """Compare the generated search results with the ground truth dataset to evaluate retrieval accuracy.
+
+        Args:
+            student_answer_path (str, optional): File path of the generated search results to evaluate.
+                Defaults to "data/output/search_results/dataset_docs_public.json".
+            dataset_path (str, optional): File path of the ground truth dataset containing the correct sources.
+                Defaults to "data/datasets/AnsweredQuestions/dataset_docs_public.json".
+            k (int, optional): The number of top search results to evaluate (ranking depth). Defaults to 10.
+            max_context_length (int, optional): Maximum characters allowed per chunk during evaluation.
+                Defaults to 2000.
         """
         try:
             args = EvaluaterArgs(

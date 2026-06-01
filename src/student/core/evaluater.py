@@ -1,3 +1,5 @@
+"""Module for evaluating RAG system search results and calculating Recall@k."""
+
 import json
 from .models import (AnsweredQuestion,
                      RagDataset,
@@ -5,11 +7,17 @@ from .models import (AnsweredQuestion,
 
 
 class BM25Evaluater:
-    """検索結果の整合性を評価する"""
+    """Evaluates the accuracy of search results against a ground truth dataset."""
 
     def __init__(self,
                  student_answer_path: str,
                  dataset_path: str) -> None:
+        """Initialize the BM25Evaluater instance.
+
+        Args:
+            student_answer_path (str): File path to the JSON containing search results to evaluate.
+            dataset_path (str): File path to the JSON containing the ground truth dataset.
+        """
         self._dataset_path = dataset_path
         with open(self._dataset_path, 'r', encoding="utf-8") as f:
             raw_data = json.load(f)
@@ -23,7 +31,12 @@ class BM25Evaluater:
     def evaluate(self,
                  k: int,
                  max_context_length: int) -> None:
-        """評価を実行"""
+        """Execute the evaluation process for multiple k values.
+
+        Args:
+            k (int): Maximum number of search results to evaluate, specified via CLI.
+            max_context_length (int): Maximum allowed character length for a single source.
+        """
         scoring_pattern = {1, 3, 5, 10}
         scoring_pattern.add(k)
         for i in sorted(scoring_pattern):
@@ -32,7 +45,17 @@ class BM25Evaluater:
     def _scoring(self,
                  k: int,
                  max_context_length: int) -> None:
-        # 引数kと実際の検索ファイル数の比較
+        """Calculate and output the Recall@k score for a specific k value to the terminal.
+
+        Args:
+            k (int): Current upper limit of search results to evaluate.
+            max_context_length (int): Maximum allowed character length for a single source.
+                Results exceeding this limit are truncated before evaluation.
+
+        Raises:
+            ValueError: If the question ID in the dataset and the answers do not match.
+        """
+        # Compare the argument k with the actual number of search results
         if self._answers.k < k:
             return
         scores = []
@@ -58,7 +81,7 @@ class BM25Evaluater:
                     t_start, u_start = true_source.first_character_index, user_source.first_character_index
                     t_end, u_end = true_source.last_character_index, user_source.last_character_index
 
-                    # チャンク制限
+                    # Chunk limit
                     if max_context_length < u_end - u_start:
                         u_end = u_start + max_context_length
                     overlap_start = max(t_start, u_start)
@@ -71,9 +94,16 @@ class BM25Evaluater:
                         true_count += 1
                         break
                     # else:
-                        # print('ダメぽよ')
-            scores.append(true_count / source_count)
-        print(f'Reacall@{k}: {sum(scores) / len(scores)}')
+                        # print('Failed')
+
+            # Prevent ZeroDivisionError
+            if source_count == 0:
+                scores.append(0.0)
+            else:
+                scores.append(true_count / source_count)
+
+        # Output format matched to the specification (3 decimal places)
+        print(f'Recall@{k}: {sum(scores) / len(scores):.3f}')
 
 
 if __name__ == "__main__":
