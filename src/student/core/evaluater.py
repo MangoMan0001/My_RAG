@@ -37,6 +37,7 @@ class BM25Evaluater:
             k (int): Maximum number of search results to evaluate, specified via CLI.
             max_context_length (int): Maximum allowed character length for a single source.
         """
+        print('Evaluation Results\n========================================')
         scoring_pattern = {1, 3, 5, 10}
         scoring_pattern.add(k)
         for i in sorted(scoring_pattern):

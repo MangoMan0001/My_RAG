@@ -88,7 +88,7 @@ class LLMAnswer:
     def answer(self,
                search_result: MinimalSearchResults,
                k: int,
-               max_new_tokens: int = 512) -> None:
+               max_new_tokens: int = 100) -> None:
         """単一の検索結果オブジェクトを受け取り、LLMを用いた回答生成を実行する.
 
         Args:
