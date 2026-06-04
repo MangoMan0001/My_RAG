@@ -1,37 +1,35 @@
 """RAGシステムにおけるLLM（大規模言語モデル）を用いた回答生成モジュール."""
 
-import torch
 import json
-from tqdm import tqdm
 import os
+from tqdm import tqdm
 from .models import (MinimalSource,
                      MinimalSearchResults,
                      MinimalAnswer,
                      StudentSearchResults,
                      StudentSearchResultsAndAnswer)
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from llama_cpp import Llama
 
 
 class LLMAnswer:
     """単一の質問に対し、LLMを用いて回答を生成するベースクラス."""
 
-    def __init__(self, model_id: str = "Qwen/Qwen3-0.6B") -> None:
+    def __init__(self, model_path: str = "data/model/Qwen3-0.6B-Q8_0.gguf") -> None:
         """LLMAnswerクラスの初期化.
 
         Args:
-            model_id (str): 使用するHugging FaceのモデルID。デフォルトは "Qwen/Qwen3-0.6B"。
+            model_path (str): ダウンロードしたGGUFモデルのファイルパス。
         """
         self._student_answer: StudentSearchResultsAndAnswer
         self._minimal_answer_list: list[MinimalAnswer] = []
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            device_map="auto",  # メモリ配置を自動化
-            torch_dtype="auto",  # メモリ効率を自動化
-            trust_remote_code=True  # Qwenのリモートコードの使用を許可
+
+        print("🚀 llama.cppエンジンを起動しますわ！")
+        self.llm = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            n_threads=6,
+            verbose=False
         )
-        # 学習ではなく本番環境に
-        self.model.eval()  # type: ignore
 
     def _extract_context(self, sources: list[MinimalSource]) -> str:
         """検索結果の情報源リストから、該当するテキスト部分を抽出して結合する.
@@ -50,28 +48,12 @@ class LLMAnswer:
                     chunk_text = content[src.first_character_index:src.last_character_index]
                     context_parts.append(f"[{src.file_path}]:\n{chunk_text}")
             except Exception as e:
-                print(f"⚠️ ファイルの読み込みに失敗しましたわ: {e}")
+                print(f"⚠️ ファイルの読み込みに失敗しました: {e}")
 
         return "\n\n".join(context_parts)
 
-    def _build_prompt(self,
-                      raw_context: str,
-                      question: str) -> str:
-        """LLMに入力するためのシステムプロンプト、コンテキスト、質問を構築する.
-
-        Args:
-            raw_context (str): 情報源から抽出された生のコンテキスト文字列。
-            question (str): ユーザーからの質問テキスト。
-
-        Returns:
-            str: LLMに入力する最終的なプロンプト文字列。
-        """
-        context_tokens = self.tokenizer.encode(raw_context)
-
-        if len(context_tokens) > 2000:
-            safe_context = self.tokenizer.decode(context_tokens[:1500], skip_special_tokens=True)
-        else:
-            safe_context = raw_context
+    def _build_prompt(self, raw_context: str, question: str) -> str:
+        safe_context = raw_context[:1500]
 
         system_prompt = (
             "You are a strict, helpful AI assistant answering questions about a codebase.\n"
@@ -94,37 +76,24 @@ class LLMAnswer:
         Args:
             search_result (MinimalSearchResults): 回答の元となる検索結果と質問を含むオブジェクト。
             k (int): 検索フェーズで指定されたkの値。
-            max_new_tokens (int, optional): LLMが新しく生成する最大トークン数。デフォルトは512。
+            max_new_tokens (int, optional): LLMが新しく生成する最大トークン数。デフォルトは100。
         """
         # 1. コンテキスト（検索結果）の復元
         raw_context = self._extract_context(search_result.retrieved_sources)
 
         prompt = self._build_prompt(raw_context, search_result.question_str)
 
-        # 3. 推論の実行（ここにはもう長すぎるテキストは入りませんわ！）
-        # pytorch型のtensorに入れる。modelに送る.
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        output = self.llm(
+            prompt,
+            max_tokens=max_new_tokens,
+            temperature=0.0,
+            stop='\n',
+            echo=False
+        )
 
-        with torch.no_grad():  # 学習を避けるためにメモリ保存を許可しない
-            outputs = self.model.generate(  # type: ignore
-                **inputs,
-                max_new_tokens=max_new_tokens,  # 最大出力量。無限ループ避け
-                do_sample=False,  # 常に最高スコアのみ選択
-                # repetition_penalty=1.15  # 👈 同じ言葉の繰り返しを禁止する。が、めちゃんこメモリ食うので動かず..
-                no_repeat_ngram_size=3      # ✅ 代わりにこの魔法を追加
-            )
+        # 戻り値からテキストだけを抽出します
+        answer_text = output["choices"][0]["text"].strip()  # type: ignore
 
-        # 4. 回答の抽出
-        generated_tokens = outputs[0][inputs.input_ids.shape[1]:]
-        answer_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-        assert isinstance(answer_text, str)
-
-        stop_words = ["\nAnswer:", "\nQuestion:", "\n\n"]
-        for stop_word in stop_words:  # 回答の水増しをカット
-            if stop_word in answer_text:
-                answer_text = answer_text.split(stop_word)[0].strip()
-
-        # 5. 結果を返す
         self._minimal_answer_list.append(MinimalAnswer(
             question_id=search_result.question_id,
             question_str=search_result.question_str,
@@ -150,15 +119,15 @@ class LLMDatasetsAnswer(LLMAnswer):
     含まれるすべての質問に対して連続で回答生成を実行してファイルに保存します。
     """
 
-    def __init__(self, model_id: str = "Qwen/Qwen3-0.6B") -> None:
+    def __init__(self, model_path: str = "data/model/Qwen3-0.6B-Q8_0.gguf") -> None:
         """LLMDatasetsAnswerクラスの初期化.
 
         親クラスの初期化処理を呼び出し、モデルのロードを行います。
 
         Args:
-            model_id (str): 使用するHugging FaceのモデルID。デフォルトは "Qwen/Qwen3-0.6B"。
+            model_path (str): ダウンロードしたGGUFモデルのファイルパス。
         """
-        super().__init__(model_id=model_id)
+        super().__init__(model_path=model_path)
 
     def data_answer(self, student_search_results_path: str) -> None:
         """検索結果データセットを読み込み、すべての質問に対して一括で回答を生成する.
@@ -170,12 +139,13 @@ class LLMDatasetsAnswer(LLMAnswer):
         self._dataset_path = student_search_results_path
         with open(self._dataset_path, 'r', encoding="utf-8") as f:
             raw_data = json.load(f)
+
         datasets = StudentSearchResults.model_validate(raw_data)
+
         for dataset in tqdm(datasets.search_results, desc='Current status: Generating'):
             self.answer(search_result=dataset, k=datasets.k)
 
-    def output_json(self,
-                    save_directory: str) -> None:
+    def output_json(self, save_directory: str) -> None:
         """蓄積された一括回答結果をJSONファイルとして保存する.
 
         Args:

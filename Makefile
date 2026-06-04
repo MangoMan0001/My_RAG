@@ -4,7 +4,6 @@
 
 # プロジェクト名とメインスクリプト
 NAME        = rag
-MAIN_SCRIPT = rag.py
 
 MAIN_DERECTRY = student
 

@@ -4,27 +4,42 @@
 
 ### Description
 自然言語のプロンプトを解析し、LLM（大規模言語モデル）に構造化された関数呼び出し（JSON形式）を生成させるプログラムです。
-LLMの出力確率（Logits）をトークンごとに直接操作する「制約付きデコーディング（Constrained Decoding）」を用いて、自然言語ではなくJSONオブジェクトを生成することを目的としています。
+LLMに既存の学習にはない、新たな外部ソースを元に回答を生成することを目的としています。
+
 
 ディレクトリ構成
 ```
 .
 ├── Makefile
-├── README.md
-├── README_ja.md          # 日本語ドキュメント
+├── README.md             # 英語ドキュメント (要件指定)
+├── README_JP.md          # 日本語ドキュメント
 ├── pyproject.toml        # 依存ライブラリやリンター(flake8, mypy)の設定
+├── uv.lock               # uvの依存関係ロックファイル
+├── .gitignore
+├── .python-version
 │
 ├── src/
-│   ├── call_me_maybe.py  # エントリーポイント
-│   ├── model.py          # 制約付きデコーディングのコアロジックとステートマシン
-│   ├── parser.py         # Pydanticを用いた入力バリデーション
-│   └── utils.py          # 引数解析
+│   └── student/
+│       ├── __main__.py   # 実行時のモジュールエントリーポイント
+│       ├── __init__.py
+│       ├── cli.py        # CLIコマンドの定義 (Fire)
+│       └── core/         # RAGシステムのコアロジック
+│           ├── answer.py     # 回答生成モジュール (llama.cpp)
+│           ├── evaluater.py  # 評価モジュール
+│           ├── indexer.py    # チャンク化・インデックス作成モジュール
+│           ├── models.py     # Pydanticを用いたデータモデル定義
+│           └── searcher.py   # BM25を用いた検索モジュール
 │
-├── llm_sdk/              # 提供されたLLM操作用ラッパー
-└── data/
-    ├── input/            # テスト用の関数定義とプロンプトJSON
-    └── output/           # 生成された結果の出力先
+├── data/                 # データ格納ディレクトリ
+│   ├── datasets/         # 質問データセット (Answered/Unanswered)
+│   ├── model/            # ダウンロードしたLLMモデルファイル (GGUF)
+│   ├── output/           # 検索結果や生成された回答JSONの出力先
+│   ├── processed/        # チャンクデータやBM25のインデックス保存先
+│   └── raw/              # インデックス作成元の生データ (vLLMリポジトリ等)
+│
+└── moulinette_pkg/       # 評価システム用パッケージ (提供ファイル)
 ```
+
 
 ### Instructions
 
@@ -34,24 +49,36 @@ LLMの出力確率（Logits）をトークンごとに直接操作する「制�
 ```bash
 make install
 ```
-仮想環境（.venv）を構築し、pydantic や numpy などの必要な依存関係をインストールします。
+仮想環境（.venv）を構築し、必要な依存関係をインストールします。
 
 2. **実行**
 ```bash
 make run
 ```
-デフォルトの設定でプログラムが実行され、data/output/function_calls.json に結果が出力されます。
+メインプログラムのヘルプが表示されます。
 
 ```bash
-uv run python src/call_me_maybe.py -f edge_functions.json -i edge_inputs.json
+uv run python -m index
 ```
+indexの作成
 
 ```bash
--f or -functions_definition : 関数定義ファイルを指定
--i or –input : 入力ファイルを指定
--o or –output : 出力ファイルを指定
+-m or -max_chunk_size : 最大チャンクサイズを指定
+-i or -index_dir : 保存ファイルを指定
 ```
 使用可能なフラグ
+
+```bash
+uv run python -m search -q "How to configure OpenAI server?"
+```
+検索
+
+```bash
+-q or -query : プロンプト
+-i or -query : プロンプト
+-k : 検索ファイル数
+```
+
 
 ```bash
 sorce .venv/bin/activate
