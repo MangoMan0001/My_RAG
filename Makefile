@@ -22,6 +22,8 @@ install: ## 仮想環境を作成し、依存関係をインストールする
 	@echo "Creating virtual environment..."
 	@echo "Installing dependencies..."
 	uv sync
+	mkdir -p data/model
+	wget -nc https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf -O data/model/Qwen3-0.6B-Q8_0.gguf
 	@echo "Setup complete! Run 'make run' to start."
 
 # ------------------------------------------
