@@ -173,7 +173,7 @@ class RAGCLI:
 
     def answer_dataset(self,
                        student_search_results_path: str = "data/output/search_results/dataset_docs_public.json",
-                       save_directory: str = "data/output") -> None:
+                       save_directory: str = "data/output/search_results_and_answer") -> None:
         """Generate and save answers in batch for all questions in the dataset based on the search results.
 
         Args:

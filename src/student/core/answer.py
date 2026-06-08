@@ -1,4 +1,4 @@
-"""RAGシステムにおけるLLM（大規模言語モデル）を用いた回答生成モジュール."""
+"""Module for generating answers using Large Language Models (LLM) in the RAG system."""
 
 import json
 import os
@@ -12,18 +12,18 @@ from llama_cpp import Llama
 
 
 class LLMAnswer:
-    """単一の質問に対し、LLMを用いて回答を生成するベースクラス."""
+    """Base class for generating answers to single queries using an LLM."""
 
     def __init__(self, model_path: str = "data/model/Qwen3-0.6B-Q8_0.gguf") -> None:
-        """LLMAnswerクラスの初期化.
+        """Initialize the LLMAnswer instance and load the GGUF model.
 
         Args:
-            model_path (str): ダウンロードしたGGUFモデルのファイルパス。
+            model_path (str): File path to the downloaded GGUF model.
+                Defaults to "data/model/Qwen3-0.6B-Q8_0.gguf".
         """
         self._student_answer: StudentSearchResultsAndAnswer
         self._minimal_answer_list: list[MinimalAnswer] = []
 
-        print("🚀 llama.cppエンジンを起動しますわ！")
         self.llm = Llama(
             model_path=model_path,
             n_ctx=2048,
@@ -32,13 +32,13 @@ class LLMAnswer:
         )
 
     def _extract_context(self, sources: list[MinimalSource]) -> str:
-        """検索結果の情報源リストから、該当するテキスト部分を抽出して結合する.
+        """Extract and concatenate text from the retrieved source indices.
 
         Args:
-            sources (list[MinimalSource]): 検索で得られた情報源のリスト。
+            sources (list[MinimalSource]): List of retrieved information sources.
 
         Returns:
-            str: プロンプトに埋め込むための、抽出・結合されたコンテキスト文字列。
+            str: Concatenated context string to be embedded in the prompt.
         """
         context_parts = []
         for src in sources:
@@ -48,11 +48,20 @@ class LLMAnswer:
                     chunk_text = content[src.first_character_index:src.last_character_index]
                     context_parts.append(f"[{src.file_path}]:\n{chunk_text}")
             except Exception as e:
-                print(f"⚠️ ファイルの読み込みに失敗しました: {e}")
+                print(f"⚠️ Failed to read the file: {e}")
 
         return "\n\n".join(context_parts)
 
     def _build_prompt(self, raw_context: str, question: str) -> str:
+        """Construct the prompt containing system instructions, context, and the question.
+
+        Args:
+            raw_context (str): Extracted raw context string.
+            question (str): User's question text.
+
+        Returns:
+            str: The final prompt string formatted for the LLM.
+        """
         safe_context = raw_context[:1500]
 
         system_prompt = (
@@ -62,7 +71,7 @@ class LLMAnswer:
             "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
             "like this: (Source: [file_path]).\n"
             "Rule 4: Stop generating text immediately after you have answered the question."
-            " Do NOT add any extra explanations or code blocks."
+            " Do NOT add any extra explanations or code blocks.\n"
             "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
         )
         return f"{system_prompt}\n\nContext:\n{safe_context}\n\nQuestion: {question}\nAnswer:"
@@ -71,14 +80,14 @@ class LLMAnswer:
                search_result: MinimalSearchResults,
                k: int,
                max_new_tokens: int = 100) -> None:
-        """単一の検索結果オブジェクトを受け取り、LLMを用いた回答生成を実行する.
+        """Generate an answer for a single search result using the LLM.
 
         Args:
-            search_result (MinimalSearchResults): 回答の元となる検索結果と質問を含むオブジェクト。
-            k (int): 検索フェーズで指定されたkの値。
-            max_new_tokens (int, optional): LLMが新しく生成する最大トークン数。デフォルトは100。
+            search_result (MinimalSearchResults): Object containing the search results and question.
+            k (int): Number of requested results from the search phase.
+            max_new_tokens (int, optional): Maximum number of tokens to generate. Defaults to 100.
         """
-        # 1. コンテキスト（検索結果）の復元
+        # 1. Restore the context (search results)
         raw_context = self._extract_context(search_result.retrieved_sources)
 
         prompt = self._build_prompt(raw_context, search_result.question_str)
@@ -91,7 +100,7 @@ class LLMAnswer:
             echo=False
         )
 
-        # 戻り値からテキストだけを抽出します
+        # Extract only the generated text from the model output
         answer_text = output["choices"][0]["text"].strip()  # type: ignore
 
         self._minimal_answer_list.append(MinimalAnswer(
@@ -107,35 +116,30 @@ class LLMAnswer:
         )
 
     def terminal_output(self) -> None:
-        """現在保持している回答結果をJSON文字列としてターミナルに出力する."""
+        """Output the current search results to the terminal in JSON format."""
         data = self._student_answer.model_dump()
         print(json.dumps(data, indent=4, ensure_ascii=False))
 
 
 class LLMDatasetsAnswer(LLMAnswer):
-    """データセット（複数質問）に対する一括回答生成処理を担当するクラス.
-
-    検索済みのデータセット（JSONファイル）を読み込み、
-    含まれるすべての質問に対して連続で回答生成を実行してファイルに保存します。
-    """
+    """Handles batch answer generation for datasets containing multiple queries."""
 
     def __init__(self, model_path: str = "data/model/Qwen3-0.6B-Q8_0.gguf") -> None:
-        """LLMDatasetsAnswerクラスの初期化.
-
-        親クラスの初期化処理を呼び出し、モデルのロードを行います。
+        """Initialize the LLMDatasetsAnswer instance.
 
         Args:
-            model_path (str): ダウンロードしたGGUFモデルのファイルパス。
+            model_path (str, optional): File path to the downloaded GGUF model.
+                Defaults to "data/model/Qwen3-0.6B-Q8_0.gguf".
         """
         super().__init__(model_path=model_path)
 
     def data_answer(self, student_search_results_path: str) -> None:
-        """検索結果データセットを読み込み、すべての質問に対して一括で回答を生成する.
+        """Generate answers in batch for a dataset of search results.
 
         Args:
-            student_search_results_path (str): 検索フェーズで出力されたJSONファイルのパス。
+            student_search_results_path (str): Path to the JSON file containing search results.
         """
-        # get datasets
+        # Get datasets
         self._dataset_path = student_search_results_path
         with open(self._dataset_path, 'r', encoding="utf-8") as f:
             raw_data = json.load(f)
@@ -146,10 +150,10 @@ class LLMDatasetsAnswer(LLMAnswer):
             self.answer(search_result=dataset, k=datasets.k)
 
     def output_json(self, save_directory: str) -> None:
-        """蓄積された一括回答結果をJSONファイルとして保存する.
+        """Save the accumulated batch answers to a JSON file.
 
         Args:
-            save_directory (str): 成果物となるJSONファイルを保存するディレクトリのパス。
+            save_directory (str): Directory path where the output JSON will be saved.
         """
         os.makedirs(save_directory, exist_ok=True)
         filename = os.path.basename(self._dataset_path)

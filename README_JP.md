@@ -1,10 +1,43 @@
 *This project has been created as part of the 42 curriculum by ayhirose.*
 
-# Call Me Maybe
+# RAG against the machine
+
+### 前提知識
+1. RAG
+Retrieving Augmented Generation (RAG) \
+検索 拡張(強化) 生成 \
+
+2. BM25
 
 ### Description
-自然言語のプロンプトを解析し、LLM（大規模言語モデル）に構造化された関数呼び出し（JSON形式）を生成させるプログラムです。
-LLMに既存の学習にはない、新たな外部ソースを元に回答を生成することを目的としています。
+LLM（大規模言語モデル）を用いた課題です。\
+自然言語のプロンプトを解析し、既存の学習にはない新たな外部ソースを元とした回答の生成を目的としています。
+
+個人目標
+- CPU単独での高速な回答
+
+
+使用したパッケージ
+>パッケージ管理は`python uv`を使用しています
+```
+accelerate>=1.13.0
+bm25s>=0.3.8
+fire>=0.7.1
+flake8>=7.3.0
+flake8-bugbear>=25.11.29
+flake8-pyproject
+langchain>=1.2.17
+langchain-community>=0.4.1
+langchain-unstructured>=1.0.1
+mypy>=1.19.1
+pep8-naming>=0.15.1
+pydantic>=2.12.5
+pystemmer>=3.0.0
+torch>=2.11.0
+tqdm>=4.67.3
+flake8-docstrings
+llama-cpp-python>=0.3.25
+```
 
 
 ディレクトリ構成
@@ -41,6 +74,7 @@ LLMに既存の学習にはない、新たな外部ソースを元に回答を�
 ```
 
 
+
 ### Instructions
 
 このプログラムは Python 3.10以上 での実行が前提です。パッケージ管理には uv を使用しています。
@@ -49,41 +83,132 @@ LLMに既存の学習にはない、新たな外部ソースを元に回答を�
 ```bash
 make install
 ```
-仮想環境（.venv）を構築し、必要な依存関係をインストールします。
+仮想環境（.venv）を構築し、必要な依存関係をインストールします。\
+課題で必須になる、Qwen3-0.6B-Q8_0.ggufをインストールも同時に行います。(`data/model`)
 
 2. **実行**
 ```bash
 make run
 ```
-メインプログラムのヘルプが表示されます。
+メインプログラムのヘルプが表示されます。\
+実行方法は多岐に渡るためrunコマンドではヘルプが表示されます。
+>**注意**\
+プログラムは依存関係のないグローバル環境では必ずしも正しく実行されるとは限りません。\
+先に`make install`にてインストールした`.venv`を通して実行してください。\
+実行方法
+`uv run <実行プログラム>`
+
+**indexの作成** \
+BM25により検索可能なインデックスを生成します。\
+indexerモジュールはデフォルトで"./data/raw/vllm-0.10.1"を対象データとして参照します。
+```bash
+uv run python -m student index --max_chunk_size 2000
+```
 
 ```bash
-uv run python -m index
-```
-indexの作成
-
-```bash
--m or -max_chunk_size : 最大チャンクサイズを指定
--i or -index_dir : 保存ファイルを指定
-```
 使用可能なフラグ
-
-```bash
-uv run python -m search -q "How to configure OpenAI server?"
-```
-検索
-
-```bash
--q or -query : プロンプト
--i or -query : プロンプト
--k : 検索ファイル数
+--index_dir: str = "data/processed"	保存ファイルを指定
+--max_chunk_size: int = 2000		最大チャンクサイズを指定
 ```
 
 
+**検索**\
+BM25によりクエリと関連性の高いソースをインデックスから検索する。\
+検索結果は`MinimalSearchResults`形式でターミナルに出力されます。
+>形式については`src/student/core/model.py`を参照してください。\
+>**注意** この操作を行う前にindexが生成されている必要があります。
 ```bash
-sorce .venv/bin/activate
+uv run python -m student search "How to configure OpenAI server?"
 ```
-（プロジェクトのPDFに厳密に従って実行する場合は、事前に `source .venv/bin/activate` を実行して仮想環境を有効にしてください。仮想環境を終了するには、`deactivate` を実行してください。）
+
+```bash
+使用可能なフラグ
+--k: int = 5						検索するソース数
+--query: str						検索時のクエリ
+--index_dir: str = "data/processed"	参照するインデックス
+--question_id: str = "q1"			クエリを紐づく固有のID
+```
+
+
+**データセット検索**\
+`RagDataset`形式のデータセットファイルを読み込み、まとめて検索を行います。\
+検索結果は`StudentSearchResults`形式で指定されたフォルダに記録されます。
+>形式については`src/student/core/model.py`を参照してください。\
+>**注意** この操作を行う前にindexが生成されている必要があります。
+```bash
+uv run python -m student search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_docs_public.json --k 10 --save_directory data/output/search_results
+```
+
+```bash
+使用可能なフラグ
+--k: int = 10
+--index_dir: str = "data/processed"
+--save_directory: str = "data/output/search_results"								検索結果の保存先
+--dataset_path: str = 'data/datasets/UnansweredQuestions/dataset_docs_public.json'	使用するデータセットファイルのパス
+```
+
+
+**回答**\
+渡せされたクエリに関連するソースをもとにLLM(`Qwen3-0.6B`)の回答生成します。\
+回答結果は`StudentSearchResultsAndAnswer`形式でターミナルに出力されます。
+>形式については`src/student/core/model.py`を参照してください。\
+>**注意** この操作を行う前にindexが生成されている必要があります。
+
+```bash
+uv run python -m student answer "How to configure OpenAI server?" --k 10
+```
+
+```bash
+使用可能なフラグ
+--query: str
+--k: int = 10
+--index_dir: str = "data/processed"
+```
+
+
+**データセット回答**\
+`StudentSearchResults`形式のデータセットファイルを読み込み、まとめて回答を行います。\
+回答結果は`StudentSearchResultsAndAnswer`形式で指定されたフォルダに記録されます。
+>形式については`src/student/core/model.py`を参照してください。\
+>**注意** この操作を行う前にindexが生成されている必要があります。
+
+```bash
+uv run python -m student answer_dataset --student_search_results_path data/output/search_results/dataset_docs_public.json --save_directory data/output/search_results_and_answer
+```
+
+```bash
+使用可能なフラグ
+--save_directory: str = "data/output/search_results_and_answer"
+--student_search_results_path: str = "data/output/search_results/dataset_docs_public.json"
+```
+
+
+**評価**\
+検索されたソースの整合性を`Recall@k`で指標する。\
+評価内容は`moulinette`と同一です。\
+`StudentSearchResultsAndAnswer`形式のデータセットファイルを読み込み、まとめて回答を行います。\
+結果はターミナルに出力されます。
+>形式については`src/student/core/model.py`を参照してください。\
+>**注意** この操作を行う前にindexが生成されている必要があります。
+
+>性能要件(課題pdf引用)
+>- インデックス作成時間：最大5分
+>- コールドスタート時のレイテンシ：最大60秒（システム起動後の最初の検索。モデル読み込みを含む）
+>- ウォーム状態での検索スループット：1000件の質問に対し最大90秒（コールドスタート後）
+>- Recall@5：ドキュメントの質問で80%、コードの質問で50%
+
+```bash
+uv run python -m moulinette evaluate_student_search_results	--student_answer_path data/output/search_results/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000
+```
+
+```bash
+使用可能なフラグ
+--k: int = 10
+--max_context_length: int = 2000													クエリ毎に評価されるテキストの長さ
+--student_answer_path: str = "data/output/search_results/dataset_docs_public.json"	評価対象となるファイルパス
+--dataset_path: str = "data/datasets/AnsweredQuestions/dataset_docs_public.json"	評価基準となるファイルパス
+```
+
 
 3. **他の `Makefile` コマンド**
 ```bash
