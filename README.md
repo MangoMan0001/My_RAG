@@ -2,52 +2,35 @@
 
 # RAG against the machine
 
-### 前提知識
+### Prerequisites
 **1. RAG**\
-Retrieving Augmented Generation (RAG) \
-検索 拡張(強化) 生成 \
-モデルに学習時の記憶したデータ以外の知識を持たせて回答を得る方法。 \
-以下の順に構成される。
+Retrieval-Augmented Generation (RAG)\
+A method that empowers a model to answer questions by providing it with knowledge outside of its pre-trained memory. It consists of the following sequence:
 
-- インデックス作成
-追加したいデータ（課題では.mdと.pyファイル）を辞書化する。検索のためのインデックスを作成する。
-
-- 検索
-`TF-IDF`や`bm25`、セマンティック検索などの自然言語処理技術を用いてプロンプトから重要となる単語とその関連性の高いデータを辞書から選び出す。
-
-- 強化/拡張
-選ばれたデータとすでに学習済みの記憶を組み合わせる。課題では検索時の情報のみに依存するため省略される。
-
-- 生成
-強化/拡張した記憶から回答を生成する。LLMはこの演算が非常に重たく、多くのモデルはGPUのサポートにより並列処理されることで高速化されている。
+- **Indexing**: Creating a dictionary-like structure from the data to be added (in this project, `.md` and `.py` files) to enable efficient searching.
+- **Retrieval**: Using Natural Language Processing (NLP) techniques like `TF-IDF`, `BM25`, or semantic search to extract key terms from the prompt and retrieve highly relevant data from the index.
+- **Augmentation**: Embedding the external data (context) obtained through retrieval into the user's prompt (question). In this project, to prevent hallucinations based on the model's pre-trained memory, a strong system prompt is used to force the generation of answers based solely on the retrieved information.
+- **Generation**: Generating an answer from the augmented context. This computation is highly resource-intensive for LLMs, and many models achieve high speed through parallel processing supported by GPUs.
 
 **2. TF-IDF**\
-自然言語処理で使われる評価手順の一つ。\
-「その文章の中に何度も出てくる単語」で、かつ「他の文章にはあまり出てこないレアな単語」ほど重要だ！と判断する古典的な計算式。\
-長文であればあるほど評価が高くなってしまうという欠点がある
->単語の出現頻度(TF) * 単語の希少性(IDF)
+An evaluation procedure used in NLP. A classic formula that considers a word important if it appears frequently in a specific document (TF) but rarely across other documents (IDF). It has a drawback where longer texts tend to receive higher scores artificially.
+> Term Frequency (TF) * Inverse Document Frequency (IDF)
 
 **3. BM25**\
-自然言語処理で使われる評価手順の一つ。\
-`TF-IDF`が抱える長文時のデメリットを克服した手法。\
-この手法はある単語の出現頻度が高くなりすぎた場合でも評価に影響しない。
->bm25アルゴリズムを動かすパッケージ`bm25s`
-
+An evaluation procedure used in NLP that overcomes the long-text drawbacks of `TF-IDF`. This method ensures that the score does not inflate disproportionately even if the frequency of a word becomes extremely high.
+> The package used to run the BM25 algorithm is `bm25s`.
 
 **4. Recall@k**\
-自然言語処理における検索システムの評価項目。\
-データセットの正解に対してモデルが提案した上位k件の中に含まれる正解の割合。
+An evaluation metric for search systems in NLP. It represents the proportion of correct answers (ground truth) found within the top `k` results proposed by the model.
 
 ### Description
-LLM（大規模言語モデル）を用いた課題です。\
-自然言語のプロンプトを解析し、既存の学習にはない新たな外部ソースを元とした回答の生成を目的としています。
+This task utilizes an LLM (Large Language Model). The objective is to analyze natural language prompts and generate answers based on new external sources that are not present in the existing training data.
 
-個人目標
-- CPU単独での高速な回答
+**Personal Goal**
+- High-speed answer generation using only a CPU.
 
-
-使用したパッケージ
->パッケージ管理は`python uv`を使用しています
+**Packages Used**
+> Package management is handled using `python uv`.
 ```
 accelerate>=1.13.0
 bm25s>=0.3.8
@@ -69,225 +52,214 @@ llama-cpp-python>=0.3.25
 ```
 
 
-ディレクトリ構成
+**Directory Structure**
 ```
 .
 ├── Makefile
-├── README.md             # 英語ドキュメント (要件指定)
-├── README_JP.md          # 日本語ドキュメント
-├── pyproject.toml        # 依存ライブラリやリンター(flake8, mypy)の設定
-├── uv.lock               # uvの依存関係ロックファイル
+├── README.md             # English documentation (Requirement)
+├── README_JP.md          # Japanese documentation
+├── pyproject.toml        # Configuration for dependencies and linters (flake8, mypy)
+├── uv.lock               # uv dependency lock file
 ├── .gitignore
 ├── .python-version
 │
 ├── src/
 │   └── student/
-│       ├── __main__.py   # 実行時のモジュールエントリーポイント
+│       ├── __main__.py   # Execution module entry point
 │       ├── __init__.py
-│       ├── cli.py        # CLIコマンドの定義 (Fire)
-│       └── core/         # RAGシステムのコアロジック
-│           ├── answer.py     # 回答生成モジュール (llama.cpp)
-│           ├── evaluater.py  # 評価モジュール
-│           ├── indexer.py    # チャンク化・インデックス作成モジュール
-│           ├── models.py     # Pydanticを用いたデータモデル定義
-│           └── searcher.py   # BM25を用いた検索モジュール
+│       ├── cli.py        # CLI command definitions (Fire)
+│       └── core/         # Core logic of the RAG system
+│           ├── answer.py     # Answer generation module (llama.cpp)
+│           ├── evaluater.py  # Evaluation module
+│           ├── indexer.py    # Chunking and index creation module
+│           ├── models.py     # Data model definitions using Pydantic
+│           └── searcher.py   # Search module using BM25
 │
-├── data/                 # データ格納ディレクトリ
-│   ├── datasets/         # 質問データセット (Answered/Unanswered)
-│   ├── model/            # ダウンロードしたLLMモデルファイル (GGUF)
-│   ├── output/           # 検索結果や生成された回答JSONの出力先
-│   ├── processed/        # チャンクデータやBM25のインデックス保存先
-│   └── raw/              # インデックス作成元の生データ (vLLMリポジトリ等)
+├── data/                 # Data storage directory
+│   ├── datasets/         # Question datasets (Answered/Unanswered)
+│   ├── model/            # Downloaded LLM model file (GGUF)
+│   ├── output/           # Output destination for search results and generated answer JSONs
+│   ├── processed/        # Storage for chunk data and BM25 index
+│   └── raw/              # Raw data for index creation (e.g., vLLM repository)
 │
-└── moulinette_pkg/       # 評価システム用パッケージ (提供ファイル)
+└── moulinette_pkg/       # Evaluation system package (Provided files)
 ```
-
-
 
 ### Instructions
 
-このプログラムは Python 3.10以上 での実行が前提です。パッケージ管理には uv を使用しています。
+This program requires Python 3.10 or higher. uv is used for package management.
 
-1. **インストール**
+1. **Installation**
 ```bash
 make install
 ```
-仮想環境（.venv）を構築し、必要な依存関係をインストールします。\
-課題で必須になる、Qwen3-0.6B-Q8_0.ggufをインストールも同時に行います。(`data/model`)
+This sets up a virtual environment (.venv) and installs the necessary dependencies. It also simultaneously downloads the mandatory Qwen3-0.6B-Q8_0.gguf model (to data/model).
 
-2. **実行**
+2. **Execution**
 ```bash
 make run
 ```
-メインプログラムのヘルプが表示されます。\
-実行方法は多岐に渡るためrunコマンドではヘルプが表示されます。
->**注意**\
-プログラムは依存関係のないグローバル環境では必ずしも正しく実行されるとは限りません。\
-先に`make install`にてインストールした`.venv`を通して実行してください。\
-実行方法
-`uv run <実行プログラム>`
+Displays the help menu for the main program. Since there are various execution methods, the run command defaults to showing help.
 
-**indexの作成** \
-BM25により検索可能なインデックスを生成します。\
-indexerモジュールはデフォルトで"./data/raw/vllm-0.10.1"を対象データとして参照します。
+>Note\
+The program may not run correctly in a global environment without dependencies. Please run it through the .venv installed via make install.\
+Execution format: uv run <execution_program>
+
+**Create Index** \
+Generates a searchable index using BM25. By default, the indexer module references ./data/raw/vllm-0.10.1 as the target data.
 ```bash
 uv run python -m student index --max_chunk_size 2000
 ```
-
 ```bash
-使用可能なフラグ
---index_dir: str = "data/processed"	保存ファイルを指定
---max_chunk_size: int = 2000		最大チャンクサイズを指定
+Available Flags:
+--index_dir: str = "data/processed"     Specify the directory to save files.
+--max_chunk_size: int = 2000            Specify the maximum chunk size.
 ```
 
 
-**検索**\
-BM25によりクエリと関連性の高いソースをインデックスから検索する。\
-検索結果は`MinimalSearchResults`形式でターミナルに出力されます。
->形式については`src/student/core/model.py`を参照してください。\
->**注意** この操作を行う前にindexが生成されている必要があります。
+**Search**\
+Searches the index for sources highly relevant to the query using BM25. Results are output to the terminal in MinimalSearchResults format.
+
+>See src/student/core/models.py for format details.\
+Note: The index must be generated before performing this operation.
 ```bash
 uv run python -m student search "How to configure OpenAI server?"
 ```
 
 ```bash
-使用可能なフラグ
---k: int = 5						検索するソース数
---query: str						検索時のクエリ
---index_dir: str = "data/processed"	参照するインデックス
---question_id: str = "q1"			クエリを紐づく固有のID
+Available Flags:
+--k: int = 5                            Number of sources to search for.
+--query: str                            The search query.
+--index_dir: str = "data/processed"     The index to reference.
+--question_id: str = "q1"               Unique ID associated with the query.
 ```
 
 
-**データセット検索**\
-`RagDataset`形式のデータセットファイルを読み込み、まとめて検索を行います。\
-検索結果は`StudentSearchResults`形式で指定されたフォルダに記録されます。
->形式については`src/student/core/model.py`を参照してください。\
->**注意** この操作を行う前にindexが生成されている必要があります。
+**Dataset Search**\
+Reads a dataset file in RagDataset format and performs searches in batch. Results are saved in the specified folder in StudentSearchResults format.
+
+>See src/student/core/models.py for format details.\
+Note: The index must be generated before performing this operation.
 ```bash
 uv run python -m student search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_docs_public.json --k 10 --save_directory data/output/search_results
 ```
 
 ```bash
-使用可能なフラグ
+Available Flags:
 --k: int = 10
 --index_dir: str = "data/processed"
---save_directory: str = "data/output/search_results"								検索結果の保存先
---dataset_path: str = 'data/datasets/UnansweredQuestions/dataset_docs_public.json'	使用するデータセットファイルのパス
+--save_directory: str = "data/output/search_results"
+--dataset_path: str = 'data/datasets/UnansweredQuestions/dataset_docs_public.json'
 ```
 
 
-**回答**\
-渡せされたクエリに関連するソースをもとにLLM(`Qwen3-0.6B`)の回答生成します。\
-回答結果は`StudentSearchResultsAndAnswer`形式でターミナルに出力されます。
->形式については`src/student/core/model.py`を参照してください。\
->**注意** この操作を行う前にindexが生成されている必要があります。
+**Answer**\
+Generates an answer using the LLM (Qwen3-0.6B) based on the sources relevant to the provided query. The result is output to the terminal in StudentSearchResultsAndAnswer format.
+
+>See src/student/core/models.py for format details.\
+Note: The index must be generated before performing this operation.
 
 ```bash
 uv run python -m student answer "How to configure OpenAI server?" --k 10
 ```
 
 ```bash
-使用可能なフラグ
+Available Flags:
 --query: str
 --k: int = 10
 --index_dir: str = "data/processed"
 ```
 
 
-**データセット回答**\
-`StudentSearchResults`形式のデータセットファイルを読み込み、まとめて回答を行います。\
-回答結果は`StudentSearchResultsAndAnswer`形式で指定されたフォルダに記録されます。
->形式については`src/student/core/model.py`を参照してください。\
->**注意** この操作を行う前にindexが生成されている必要があります。
+**Dataset Answer**\
+Reads a dataset file in StudentSearchResults format and generates answers in batch. Results are saved in the specified folder in StudentSearchResultsAndAnswer format.
 
+>See src/student/core/models.py for format details.\
+Note: The index must be generated before performing this operation.
 ```bash
 uv run python -m student answer_dataset --student_search_results_path data/output/search_results/dataset_docs_public.json --save_directory data/output/search_results_and_answer
 ```
 
 ```bash
-使用可能なフラグ
+Available Flags:
 --save_directory: str = "data/output/search_results_and_answer"
 --student_search_results_path: str = "data/output/search_results/dataset_docs_public.json"
 ```
 
 
-**評価**\
-検索されたソースの整合性を`Recall@k`で指標する。\
-評価内容は`moulinette`と同一です。\
-`StudentSearchResultsAndAnswer`形式のデータセットファイルを読み込み、まとめて回答を行います。\
-結果はターミナルに出力されます。
->形式については`src/student/core/model.py`を参照してください。\
->**注意** この操作を行う前にindexが生成されている必要があります。
+**Evaluate**\
+Evaluates the consistency of the searched sources using Recall@k. The evaluation content is identical to moulinette. It reads a dataset file in StudentSearchResultsAndAnswer format. Results are output to the terminal.
 
->性能要件(課題pdf引用)
->- インデックス作成時間：最大5分
->- コールドスタート時のレイテンシ：最大60秒（システム起動後の最初の検索。モデル読み込みを含む）
->- ウォーム状態での検索スループット：1000件の質問に対し最大90秒（コールドスタート後）
->- Recall@5：ドキュメントの質問で80%、コードの質問で50%
+>See src/student/core/models.py for format details.\
+Note: The index must be generated before performing this operation.
 
+>Performance Requirements (quoted from task PDF):
+>- Indexing time: Maximum 5 minutes.
+>- Cold start latency: Maximum 60 seconds (First search after system startup, including model loading).
+>- Warm state search throughput: Maximum 90 seconds for 1000 questions (After cold start).
+>- Recall@5: 80% for doc questions, 50% for code questions.
 ```bash
 uv run python -m student evaluate --student_answer_path data/output/search_results/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000
 ```
 
 ```bash
-使用可能なフラグ
+Available flags
 --k: int = 10
---max_context_length: int = 2000													クエリ毎に評価されるテキストの長さ
---student_answer_path: str = "data/output/search_results/dataset_docs_public.json"	評価対象となるファイルパス
---dataset_path: str = "data/datasets/AnsweredQuestions/dataset_docs_public.json"	評価基準となるファイルパス
+--max_context_length: int = 2000 Maximum text length evaluated per query
+--student_answer_path: str = "data/output/search_results/dataset_docs_public.json" File path to be evaluated
+--dataset_path: str = "data/datasets/AnsweredQuestions/dataset_docs_public.json" File path for evaluation criteria
 ```
 
 
-3. **他の `Makefile` コマンド**
+3. **Other Makefile Commands**
 ```bash
 make lint
 make lint-strict
 ```
-flake8 と mypy による静的型解析を実行します。
+Runs static type analysis and style checking using flake8 and mypy.
 
 ```bash
 make debug
 ```
-pdb を使用したデバッグモードで実行します。
+Runs the program in debug mode using pdb.
 
 ```bash
 make clean
 ```
-キャッシュファイルを削除します。
-仮想環境の削除も含むfcleanも同様に使用できます。
+Removes cache files. fclean can also be used to remove the virtual environment.
 
 
 ## Additional sections
 
-###	システムアーキテクチャ
-RAGパイプラインの構成要素と、それらの相互作用について\
-エントリーポイントととなるコマンドラインは`python fire`パッケージです。各Pythonモジュールを管理しています。\
-RAGパイプラインは`langchain`フレームワークを土台にインデックス作成と検索を`bm25s`パッケージ。Qwenによる回答生成は`llama_cpp`にて実装しています。
+### System Architecture
+Regarding the components of the RAG pipeline and their interactions:
 
-###	チャンキング戦略
-ドキュメントのセグメンテーションに対するアプローチ
-- 各チャンク間のオーバラップを100文字設けたことで、前後関係のわかりにくいぶつ切りのチャンクを抑えることができました。
-- `bm25s`の`stopwords='en'`を設定。意味を持たない頻出単語('a' 'is' 'the'など)を取り除き、速度向上、精度向上に寄与しました。
-- 単語の接尾接頭を取り除き、語幹に還元するステミングを追加。bm25の精度向上に寄与しました。(`Stemmer`)
->ステミングとは 複数形や活用形（例："fishing", "fished", "fisher"）を同一の単語（例："fish"）として処理
+The entry point command-line is managed by the python fire package, which orchestrates each Python module. The RAG pipeline is built on the langchain framework, with indexing and searching handled by the bm25s package. Answer generation using Qwen is implemented via llama_cpp.
 
-###	検索手法
-検索アルゴリズムとランキングメカニズムの詳細\
-bm25アルゴリズムで検索したチャンクのIDをローカルで既に保存したインデックスから参照します。これを`k`回繰り返します。\
-`bm25s`の`retrieve`メソッドは一度に`k`つのファイルを検索します。listのインデックスが低い順からクエリとの関連性が高いため、それを元に順にランキングを作成します。
+###	Chunking Strategy
+Approach to document segmentation:
 
-###	性能分析
-Recall@kスコアおよびシステムの性能について
->性能要件(課題pdf引用)
->- インデックス作成時間：最大5分
->- コールドスタート時のレイテンシ：最大60秒（システム起動後の最初の検索。モデル読み込みを含む）
->- ウォーム状態での検索スループット：1000件の質問に対し最大90秒（コールドスタート後）
->- Recall@5：ドキュメントの質問で80%、コードの質問で50%
+- Set a 100-character overlap between chunks to prevent disjointed fragments that lack context.
+- Configured stopwords='en' in bm25s to remove meaningless frequent words (like 'a', 'is', 'the'), contributing to both speed and accuracy improvements.
+- Added Stemming to strip suffixes and prefixes, reducing words to their root form (e.g., "fishing", "fished", "fisher" to "fish"). This significantly contributed to improving BM25 accuracy.
 
-インデックス作成は10秒以下で作成が完了します。主に生データの`vllm-0.10.1`から今回の課題に使用される`.py` `.md`のみを抜粋している点と使用した`bm25s`の基盤となる`Numpy`や`Scipy`はC言語で作成されている点から遅延が抑えられていると思われます。\
-検索も`bm25s`を使用しています。\
-Recall@kは`bm25s`標準検索のみのスコアと、チャンキング戦略の項目で挙げた`ステミング`や`stopwods`の実装後のスコアとの間に大きく差があるため精度向上に寄与していたことがわかります。
+### Search Method
+Details of the search algorithm and ranking mechanism\
+The IDs of the chunks retrieved using the bm25 algorithm are looked up in the locally stored index. This process is repeated `k` times.\
+The `retrieve` method of `bm25s` retrieves `k` files at a time. Since files with lower list indices are more relevant to the query, a ranking is created in order based on this.
+
+### Performance Analysis
+Recall@k-score and System Performance
+>Performance Requirements (cited from the challenge PDF)
+>- Index creation time: Maximum 5 minutes
+>- Cold-start latency: Maximum 60 seconds (first search after system startup, including model loading)
+>- Search throughput in warm state: Maximum 90 seconds for 1,000 queries (after cold start)
+>- Recall@5: 80% for document-based questions, 50% for code-based questions
+
+Index creation is completed in 10 seconds or less. Delays are likely minimized because the process primarily extracts only the `.py` and `.md` files used for this task from the raw `vllm-0.10.1` data, and because `Numpy` and `Scipy`—the foundations of the `bm25s` algorithm used—are written in C.
+Searches also use `bm25s`.
+Recall@k shows a significant difference between the score from the standard `bm25s` search alone and the score after implementing `stemming` and `stopwords` (as mentioned in the section on chunking strategies), indicating that these measures contributed to improved accuracy.
+
 ```python
 <pre score> .md
 Recall@1: 0.44
@@ -317,45 +289,44 @@ Recall@5: 0.55
 Recall@10: 0.59
 ```
 
+### Design Decisions
+Key choices made during implementation\
+- Since this was my first time using the package, I decided to write the provided methods exactly as they were, without abbreviating them.\
+- With `flake8`'s default maximum column length of 79 characters, unintended line breaks occurred frequently, significantly reducing readability; therefore, I set the limit to 120 characters.
 
-###	設計上の判断
-実装における重要な選択について\
-- 初めて使用するパッケージだったため、略さずに提供メソッドをそのまま記述することにしました。\
-- `flake8`の標準設定の最大列文字数の79文字では意図しない改行が多発し、著しく可読性が下がるため上限値を120文字に設定しました。
+### Challenges Encountered
+A record of difficulties encountered and their solutions\
 
-###	直面した課題
-遭遇した困難と解決策の記録\
+**Response Speed**
+- Issue: Most model manipulation packages recommended in the problem PDF, such as `transformers`, support parallel processing using GPUs. When running these packages on a school PC with only a CPU, each response took over 60 seconds. Combined with a drop in processing speed due to heat, it took over two hours to process the 100 questions in the dataset.
 
-**回答速度**
-- 問題点：課題PDFで推奨されている`transformers`などのモデル操作パッケージはGPUを使用した並列回答をサポートしているものがほとんどであり、それらのパッケージをCPUのみの校舎PCで実行した場合1回答につき60秒以上かかり、熱による処理速度の低下も相まりデータセット100問の回答に2時間以上かかっていた。
+- Solution: We switched the model operations to the `llama_cpp` package, which is written in C++ and designed for CPU execution. We also changed the specification to install the local LLM as an 8-bit local file in the GGUF (GPT-Generated Unified Format) before execution.
 
-- 対策：モデル操作をCPU動作前提のC++で作成された`llama_cpp`パッケージに変更。ローカルLLMをGGUFデータ形式(GPT-Generated Unified Format)で8bitのローカルファイルとして実行前にインストールを行う仕様に変更。
+- Result: Response time was reduced to 4 seconds per question, allowing 100 questions to be processed in 6–7 minutes.
 
-- 結果：1問4秒に短縮、100問が6〜7分で処理が可能になった。
+**Low Recall@k Scores**
+- Issue: `Recall@k` did not meet performance requirements.
 
-**Recall@kスコアの低迷**
-- 問題点：`Recall@k`が性能要件に満たなかった。
+- Solution: The `stemming` and `stopwords` settings for `bm25s`, which were implemented in the `indexer` module, were not being carried over to the `searcher` module. Although chunking was functioning, we modified the system so that these settings are also carried over during loading at the time of search.
 
-- 対策：`indexer`モジュールで実装していた`bm25s`の`ステミング`と`stopwords`が`searcher`モジュールで引き継がれていなかった。チャンキングは機能していたが、検索時の読み込み時にも設定が引き継がれるように変更した。
+- Result: Scores increased by 1.5x for `.md` files and 2.2x for `.py` files.
 
-- 結果：`.md`で1.5倍、`.py`で2.2倍スコアが上昇した。
+### Usage Example: Clearly demonstrate system execution examples
+Please refer to the `Instructions` section for basic operations.
 
-###	使用例：システムの実行例を明確に提示する
-基本的な操作は`Instructions`の項目を参照してください。
-
-わかりにくかった`moulinette`の操作方法を説明します。\
+Here is an explanation of the `moulinette` operation, which was previously difficult to understand.
 ```bash
 cd moulinette_pkg
 ./moulinette-ubuntu evaluate_student_search_results ../data/output/search_results/dataset_docs_public.json ../data/datasets/AnsweredQuestions/dataset_docs_public.json --threshold 0.8
 ```
 
 ### Resources
-
 AI
-- 制約付きデコーディングにおけるLogits操作のアルゴリズム設計とデバッグの壁打ち。
-- `flake8` および `mypy` のエラーログ解析と `pyproject.toml` の最適化。
-- DocstringおよびREADMEの英訳、構成支援。
+- Brainstorming on algorithm design and debugging for logit manipulation in constrained decoding.
+- Analyzing error logs from `flake8` and `mypy`, and optimizing `pyproject.toml`.
+- Translating docstrings and READMEs into English, and assisting with documentation organization.
 
-`python uv`公式ドキュメント、公式AI\
-`langchain`公式ドキュメント、公式AI\
-`llama-cpp-python`公式ドキュメント、公式AI
+
+`python uv` official documentation, official AI\
+`langchain` official documentation, official AI\
+`llama-cpp-python` official documentation, official AI
