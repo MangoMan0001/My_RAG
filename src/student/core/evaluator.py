@@ -62,8 +62,6 @@ class BM25Evaluater:
         scores = []
         for dataset, answer in zip(self._datasets.rag_questions,
                                    self._answers.search_results):
-            # print()
-            # print(dataset.question)
             assert isinstance(dataset, AnsweredQuestion)
 
             if dataset.question_id != answer.question_id:
@@ -77,7 +75,6 @@ class BM25Evaluater:
                     if k <= i:
                         break
                     if true_source.file_path != user_source.file_path:
-                        # print('ファイルが違う')
                         continue
                     t_start, u_start = true_source.first_character_index, user_source.first_character_index
                     t_end, u_end = true_source.last_character_index, user_source.last_character_index
@@ -91,11 +88,8 @@ class BM25Evaluater:
 
                     correct_length = t_end - t_start
                     if correct_length * 0.05 <= overlap_length:
-                        # print("🎯 見事ソースを特定！")
                         true_count += 1
                         break
-                    # else:
-                        # print('Failed')
 
             # Prevent ZeroDivisionError
             if source_count == 0:
