@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from .core.indexer import BM25Indexer
 from .core.searcher import BM25Searcher, BM25DatasetSearcher
 from .core.answer import LLMAnswer, LLMDatasetsAnswer
-from .core.evaluater import BM25Evaluater
+from .core.evaluator import BM25Evaluater
 import sys
 
 

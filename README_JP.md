@@ -3,15 +3,40 @@
 # RAG against the machine
 
 ### 前提知識
-1. RAG
+**1. RAG**\
 Retrieving Augmented Generation (RAG) \
 検索 拡張(強化) 生成 \
+モデルに学習時の記憶したデータ以外の知識を持たせて回答を得る方法。 \
+以下の順に構成される。
 
-2. BM25
-bm25アルゴリズムを動かすパッケージ`bm25s`
+- インデックス作成
+追加したいデータ（課題では.mdと.pyファイル）を辞書化する。検索のためのインデックスを作成する。
 
-3. Recall@k
-自然言語処理における検索システムの評価項目
+- 検索
+`TF-IDF`や`bm25`、セマンティック検索などの自然言語処理技術を用いてプロンプトから重要となる単語とその関連性の高いデータを辞書から選び出す。
+
+- 強化/拡張
+選ばれたデータとすでに学習済みの記憶を組み合わせる。課題では検索時の情報のみに依存するため省略される。
+
+- 生成
+強化/拡張した記憶から回答を生成する。LLMはこの演算が非常に重たく、多くのモデルはGPUのサポートにより並列処理されることで高速化されている。
+
+**2. TF-IDF**\
+自然言語処理で使われる評価手順の一つ。\
+「その文章の中に何度も出てくる単語」で、かつ「他の文章にはあまり出てこないレアな単語」ほど重要だ！と判断する古典的な計算式。\
+長文であればあるほど評価が高くなってしまうという欠点がある
+>単語の出現頻度(TF) * 単語の希少性(IDF)
+
+**3. BM25**\
+自然言語処理で使われる評価手順の一つ。\
+`TF-IDF`が抱える長文時のデメリットを克服した手法。\
+この手法はある単語の出現頻度が高くなりすぎた場合でも評価に影響しない。
+>bm25アルゴリズムを動かすパッケージ`bm25s`
+
+
+**4. Recall@k**\
+自然言語処理における検索システムの評価項目。\
+データセットの正解に対してモデルが提案した上位k件の中に含まれる正解の割合。
 
 ### Description
 LLM（大規模言語モデル）を用いた課題です。\
@@ -202,7 +227,7 @@ uv run python -m student answer_dataset --student_search_results_path data/outpu
 >- Recall@5：ドキュメントの質問で80%、コードの質問で50%
 
 ```bash
-uv run python -m moulinette evaluate_student_search_results	--student_answer_path data/output/search_results/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000
+uv run python -m student evaluate --student_answer_path data/output/search_results/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000
 ```
 
 ```bash
@@ -243,7 +268,7 @@ RAGパイプラインは`langchain`フレームワークを土台にインデッ
 ###	チャンキング戦略
 ドキュメントのセグメンテーションに対するアプローチ
 - 各チャンク間のオーバラップを100文字設けたことで、前後関係のわかりにくいぶつ切りのチャンクを抑えることができました。
-- `bm25s`の`stopwods='en'`を設定。意味を持たない頻出単語('a' 'is' 'the'など)を取り除き、速度向上、精度向上に寄与しました。
+- `bm25s`の`stopwords='en'`を設定。意味を持たない頻出単語('a' 'is' 'the'など)を取り除き、速度向上、精度向上に寄与しました。
 - 単語の接尾接頭を取り除き、語幹に還元するステミングを追加。bm25の精度向上に寄与しました。(`Stemmer`)
 >ステミングとは 複数形や活用形（例："fishing", "fished", "fisher"）を同一の単語（例："fish"）として処理
 
@@ -265,31 +290,31 @@ Recall@kスコアおよびシステムの性能について
 Recall@kは`bm25s`標準検索のみのスコアと、チャンキング戦略の項目で挙げた`ステミング`や`stopwods`の実装後のスコアとの間に大きく差があるため精度向上に寄与していたことがわかります。
 ```python
 <pre score> .md
-Reacall@1: 0.44
-Reacall@3: 0.46
-Reacall@5: 0.51
-Reacall@10: 0.56
+Recall@1: 0.44
+Recall@3: 0.46
+Recall@5: 0.51
+Recall@10: 0.56
 ```
 ```python
 <post score> .md
-Reacall@1: 0.72
-Reacall@3: 0.79
-Reacall@5: 0.82
-Reacall@10: 0.86
+Recall@1: 0.72
+Recall@3: 0.79
+Recall@5: 0.82
+Recall@10: 0.86
 ```
 ```python
 <pre score> .py
-Reacall@1: 0.14
-Reacall@3: 0.19
-Reacall@5: 0.25
-Reacall@10: 0.28
+Recall@1: 0.14
+Recall@3: 0.19
+Recall@5: 0.25
+Recall@10: 0.28
 ```
 ```python
 <post score> .py
-Reacall@1: 0.41
-Reacall@3: 0.51
-Reacall@5: 0.55
-Reacall@10: 0.59
+Recall@1: 0.41
+Recall@3: 0.51
+Recall@5: 0.55
+Recall@10: 0.59
 ```
 
 
@@ -321,8 +346,7 @@ Reacall@10: 0.59
 わかりにくかった`moulinette`の操作方法を説明します。\
 ```bash
 cd moulinette_pkg
-./moulinette-ubuntu evaluate_student_search_results ../data/output/search_results/dat
-aset_docs_public.json ../data/datasets/AnsweredQuestions/dataset_docs_public.json --threshold 0.8
+./moulinette-ubuntu evaluate_student_search_results ../data/output/search_results/dataset_docs_public.json ../data/datasets/AnsweredQuestions/dataset_docs_public.json --threshold 0.8
 ```
 
 ### Resources
