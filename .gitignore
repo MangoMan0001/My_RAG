@@ -5,5 +5,4 @@ test.txt
 __pycache__
 *.egg-info/
 .mypy_cache
-uv.lock
 data/model/

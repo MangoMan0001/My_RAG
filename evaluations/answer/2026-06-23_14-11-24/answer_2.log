@@ -1,0 +1,63 @@
+answer the query 'How do you configure vLLM data parallel deployment with API server on one node and all engines on another node?'
+{
+    "search_results": [
+        {
+            "question_id": "",
+            "question_str": "How do you configure vLLM data parallel deployment with API server on one node and all engines on another node?",
+            "retrieved_sources": [
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/data_parallel_deployment.md",
+                    "first_character_index": 2491,
+                    "last_character_index": 4202
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/expert_parallel_deployment.md",
+                    "first_character_index": 1958,
+                    "last_character_index": 3319
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/data_parallel_deployment.md",
+                    "first_character_index": 4203,
+                    "last_character_index": 5828
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/expert_parallel_deployment.md",
+                    "first_character_index": 3320,
+                    "last_character_index": 5213
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/tests/v1/test_internal_lb_dp.py",
+                    "first_character_index": 5837,
+                    "last_character_index": 7374
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/tests/v1/test_internal_lb_dp.py",
+                    "first_character_index": 7384,
+                    "last_character_index": 8626
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/parallelism_scaling.md",
+                    "first_character_index": 2554,
+                    "last_character_index": 4285
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/usage/security.md",
+                    "first_character_index": 0,
+                    "last_character_index": 1861
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/data_parallel_deployment.md",
+                    "first_character_index": 5830,
+                    "last_character_index": 7776
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/serving/expert_parallel_deployment.md",
+                    "first_character_index": 0,
+                    "last_character_index": 1956
+                }
+            ],
+            "answer": "[Your detailed, self-contained answer here]"
+        }
+    ],
+    "k": 10
+}

@@ -1,0 +1,63 @@
+answer the query 'How do you specify LoRA modules when starting a vLLM server?'
+{
+    "search_results": [
+        {
+            "question_id": "",
+            "question_str": "How do you specify LoRA modules when starting a vLLM server?",
+            "retrieved_sources": [
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/features/lora.md",
+                    "first_character_index": 2072,
+                    "last_character_index": 4069
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/vllm/benchmarks/serve.py",
+                    "first_character_index": 36721,
+                    "last_character_index": 38127
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/features/lora.md",
+                    "first_character_index": 14027,
+                    "last_character_index": 14470
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/contributing/profiling.md",
+                    "first_character_index": 0,
+                    "last_character_index": 1954
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/getting_started/quickstart.md",
+                    "first_character_index": 6294,
+                    "last_character_index": 8077
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/examples/offline_inference/basic/README.md",
+                    "first_character_index": 0,
+                    "last_character_index": 1945
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/features/lora.md",
+                    "first_character_index": 9116,
+                    "last_character_index": 9966
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/examples/online_serving/openai_chat_completion_client_with_tools_required.py",
+                    "first_character_index": 0,
+                    "last_character_index": 565
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/docs/deployment/frameworks/streamlit.md",
+                    "first_character_index": 0,
+                    "last_character_index": 1111
+                },
+                {
+                    "file_path": "data/raw/vllm-0.10.1/examples/online_serving/openai_transcription_client.py",
+                    "first_character_index": 0,
+                    "last_character_index": 710
+                }
+            ],
+            "answer": "To specify LoRA modules when starting a vLLM server, use the command line argument `--lora-modules {name}={path} {name}={path}`. This allows you to define each LoRA module's path and name."
+        }
+    ],
+    "k": 10
+}

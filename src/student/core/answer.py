@@ -52,7 +52,7 @@ class LLMAnswer:
 
         return "\n\n".join(context_parts)
 
-    def _build_prompt(self, raw_context: str, question: str) -> str:
+    def _build_prompt(self, raw_context: str, question: str) -> list[dict[str, str]]:
         """Construct the prompt containing system instructions, context, and the question.
 
         Args:
@@ -64,22 +64,49 @@ class LLMAnswer:
         """
         safe_context = raw_context[:1500]
 
+        # system_prompt = (
+        #     "You are a strict, helpful AI assistant answering questions about a codebase.\n"
+        #     "Rule 1: Answer ONLY based on the provided Context. Do NOT hallucinate.\n"
+        #     "Rule 2: Your answer must be self-contained and directly answer the question.\n"
+        #     "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
+        #     "like this: (Source: [file_path]).\n"
+        #     "Rule 4: Stop generating text immediately after you have answered the question."
+        #     " Do NOT add any extra explanations or code blocks.\n"
+        #     "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
+        # )
         system_prompt = (
-            "You are a strict, helpful AI assistant answering questions about a codebase.\n"
-            "Rule 1: Answer ONLY based on the provided Context. Do NOT hallucinate.\n"
+            "You are a strict AI assistant answering questions based ONLY on the Context.\n"
+            "Rule 1: Do NOT hallucinate.\n"
             "Rule 2: Your answer must be self-contained and directly answer the question.\n"
-            "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
-            "like this: (Source: [file_path]).\n"
-            "Rule 4: Stop generating text immediately after you have answered the question."
-            " Do NOT add any extra explanations or code blocks.\n"
-            "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
+            "Rule 3: You MUST output your response in this EXACT format:\n"
+            "[Your detailed, self-contained answer here]\n"
+            "(Source: [file_path])\n"
+            "Rule 4: Stop generating text immediately after writing the (Source: ...)."
         )
-        return f"{system_prompt}\n\nContext:\n{safe_context}\n\nQuestion: {question}\nAnswer:"
+        system_prompt = (
+            "You are a highly precise technical assistant. "
+            "You MUST answer the question strictly based on the provided Context.\n"
+            "CRITICAL RULES:\n"
+            "1. Write a self-contained natural language sentence that directly answers the question.\n"
+            "2. You MUST append the exact source file path at the very end of your answer in this format: (Source: [file_path]).\n"
+            "3. If the Context does not contain the answer, output exactly: 'I cannot answer based on the context.'"
+            - Self-contained: Can be read without referring to the original question
+- Cite source: Clearly state the source of the quote
+- Faithful: Limited to the content of the original work (does not include hallucinations)
+- Relevance: Directly answers the question
+
+)
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{raw_context}\n\nQuestion: {question}"}
+        ]
+        return messages
 
     def answer(self,
                search_result: MinimalSearchResults,
                k: int,
-               max_new_tokens: int = 100) -> None:
+               max_new_tokens: int = 512) -> None:
         """Generate an answer for a single search result using the LLM.
 
         Args:
@@ -88,17 +115,21 @@ class LLMAnswer:
             max_new_tokens (int, optional): Maximum number of tokens to generate. Defaults to 100.
         """
         # 1. Restore the context (search results)
+        self._minimal_answer_list = []
         raw_context = self._extract_context(search_result.retrieved_sources)
 
-        prompt = self._build_prompt(raw_context, search_result.question_str)
+        messages = self._build_prompt(raw_context, search_result.question_str)
 
-        output = self.llm(
-            prompt,
-            max_tokens=max_new_tokens,
-            temperature=0.0,
-            stop='\n',
-            echo=False
+        output = self.llm.create_chat_completion(
+            messages=messages,
+            max_tokens=max_new_tokens
         )
+        # output = self.llm(
+        #     prompt,
+        #     max_tokens=max_new_tokens,
+        #     temperature=0.0,
+        #     echo=False
+        # )
 
         # Extract only the generated text from the model output
         answer_text = output["choices"][0]["text"].strip()  # type: ignore
