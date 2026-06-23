@@ -1,2 +1,0 @@
-search the dataset '/goinfre/ayhirose/My_RAG/data/datasets/private/UnansweredQuestions/dataset_docs_private.json'
-[Errno 2] No such file or directory: 'data/processed/bm25_index/params.index.json'

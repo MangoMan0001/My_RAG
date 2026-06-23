@@ -8,7 +8,7 @@ from .models import (MinimalSource,
                      MinimalAnswer,
                      StudentSearchResults,
                      StudentSearchResultsAndAnswer)
-from llama_cpp import Llama
+from llama_cpp import Llama, ChatCompletionRequestSystemMessage, ChatCompletionRequestUserMessage, ChatCompletionRequestAssistantMessage
 
 
 class LLMAnswer:
@@ -52,61 +52,54 @@ class LLMAnswer:
 
         return "\n\n".join(context_parts)
 
-    def _build_prompt(self, raw_context: str, question: str) -> list[dict[str, str]]:
-        """Construct the prompt containing system instructions, context, and the question.
+    # def _build_prompt(self, raw_context: str, question: str) -> str:
+    #     """Construct the prompt containing system instructions, context, and the question.
 
-        Args:
-            raw_context (str): Extracted raw context string.
-            question (str): User's question text.
+    #     Args:
+    #         raw_context (str): Extracted raw context string.
+    #         question (str): User's question text.
 
-        Returns:
-            str: The final prompt string formatted for the LLM.
-        """
-        safe_context = raw_context[:1500]
+    #     Returns:
+    #         str: The final prompt string formatted for the LLM.
+    #     """
+    #     safe_context = raw_context[:1500]
 
-        # system_prompt = (
-        #     "You are a strict, helpful AI assistant answering questions about a codebase.\n"
-        #     "Rule 1: Answer ONLY based on the provided Context. Do NOT hallucinate.\n"
-        #     "Rule 2: Your answer must be self-contained and directly answer the question.\n"
-        #     "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
-        #     "like this: (Source: [file_path]).\n"
-        #     "Rule 4: Stop generating text immediately after you have answered the question."
-        #     " Do NOT add any extra explanations or code blocks.\n"
-        #     "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
-        # )
-        system_prompt = (
-            "You are a strict AI assistant answering questions based ONLY on the Context.\n"
-            "Rule 1: Do NOT hallucinate.\n"
-            "Rule 2: Your answer must be self-contained and directly answer the question.\n"
-            "Rule 3: You MUST output your response in this EXACT format:\n"
-            "[Your detailed, self-contained answer here]\n"
-            "(Source: [file_path])\n"
-            "Rule 4: Stop generating text immediately after writing the (Source: ...)."
-        )
-        system_prompt = (
-            "You are a highly precise technical assistant. "
-            "You MUST answer the question strictly based on the provided Context.\n"
-            "CRITICAL RULES:\n"
-            "1. Write a self-contained natural language sentence that directly answers the question.\n"
-            "2. You MUST append the exact source file path at the very end of your answer in this format: (Source: [file_path]).\n"
-            "3. If the Context does not contain the answer, output exactly: 'I cannot answer based on the context.'"
-            - Self-contained: Can be read without referring to the original question
-- Cite source: Clearly state the source of the quote
-- Faithful: Limited to the content of the original work (does not include hallucinations)
-- Relevance: Directly answers the question
-
-)
-        )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context:\n{raw_context}\n\nQuestion: {question}"}
-        ]
-        return messages
+    #     # system_prompt = (
+    #     #     "You are a strict, helpful AI assistant answering questions about a codebase.\n"
+    #     #     "Rule 1: Answer ONLY based on the provided Context. Do NOT hallucinate.\n"
+    #     #     "Rule 2: Your answer must be self-contained and directly answer the question.\n"
+    #     #     "Rule 3: You MUST cite the source file for every fact. Format your citation exactly "
+    #     #     "like this: (Source: [file_path]).\n"
+    #     #     "Rule 4: Stop generating text immediately after you have answered the question."
+    #     #     " Do NOT add any extra explanations or code blocks.\n"
+    #     #     "Example: The server is configured using the API key (Source: data/raw/.../openai.py)."
+    #     # )
+    #     # system_prompt = (
+    #     #     "You are a strict AI assistant answering questions based ONLY on the Context.\n"
+    #     #     "Rule 1: Do NOT hallucinate.\n"
+    #     #     "Rule 2: Your answer must be self-contained and directly answer the question.\n"
+    #     #     "Rule 3: You MUST output your response in this EXACT format:\n"
+    #     #     "[Your detailed, self-contained answer here]\n"
+    #     #     "(Source: [file_path])\n"
+    #     #     "Rule 4: Stop generating text immediately after writing the (Source: ...)."
+    #     # )
+    #     system_prompt = (
+    #         "You are a strict AI assistant that answers questions based solely on context.\n"
+    #         "Please provide an answer that meets all of the following conditions\n"
+    #         "1. Self-contained: The answer must be readable without referring to the original question.\n"
+    #         "2. Cite sources: Clearly state the source of any quotes.\n"
+    #         "3. Faithful: The answer must be limited to the content of the original text (do not include hallucinations).\n"
+    #         "4. Relevance: The answer must directly address the question\n"
+    #         "5. The answer must be output in this exact format: \n"
+    #         "[Please enter a detailed and complete answer here]\n"
+    #         "(Source: [file_path])\n"
+    #     )
+    #     return f"{system_prompt}\n\nContext:\n{safe_context}\n\nQuestion: {question}\nAnswer:"
 
     def answer(self,
                search_result: MinimalSearchResults,
                k: int,
-               max_new_tokens: int = 512) -> None:
+               max_new_tokens: int = 3000) -> None:
         """Generate an answer for a single search result using the LLM.
 
         Args:
@@ -117,13 +110,41 @@ class LLMAnswer:
         # 1. Restore the context (search results)
         self._minimal_answer_list = []
         raw_context = self._extract_context(search_result.retrieved_sources)
+        safe_context = raw_context[:1500]
 
-        messages = self._build_prompt(raw_context, search_result.question_str)
+        # prompt = self._build_prompt(raw_context, search_result.question_str)
+        # system_prompt = (
+        #     "You are a strict AI assistant that answers questions based solely on context.\n"
+        #     "Please provide an answer that meets all of the following conditions\n"
+        #     "1. Self-contained: The answer must be readable without referring to the original question.\n"
+        #     "2. Cite sources: Clearly state the source of any quotes.\n"
+        #     "3. Faithful: The answer must be limited to the content of the original text (do not include hallucinations).\n"
+        #     "4. Relevance: The answer must directly address the question\n"
+        #     "5. The answer must be output in this exact format: \n"
+        #     "[Please enter a detailed and complete answer here]\n"
+        #     "(Source: [file_path])\n"
+        # )
+
+        system_prompt = (
+            "You are a strict technical assistant.\n"
+            "Answer the question directly and concisely based ONLY on the Context. \n"
+            "You MUST append the exact source file path at the very end of your answer formatted EXACTLY like this: (Source: [file_path]).\n"
+            "EXAMPLE FORMAT\n"
+            "To start the server, run `vllm serve`. (Source: data/raw/vllm/docs/start.md)"
+            )
 
         output = self.llm.create_chat_completion(
-            messages=messages,
+            messages=[
+                {"role": "system", "content": system_prompt},
+
+                # {"role": "user", "content": "Context:\n[data/raw/sample.md] (start: 0, end: 50)\nThe default port is 8000.\n\nQuestion: What is the default port?"},
+                # {"role": "assistant", "content": "The default port is 8000. (Source: data/raw/sample.md)"},
+
+                {"role": "user", "content": f"Context:\n{safe_context}\n\nQuestion: {search_result.question_str}"}
+                ],
             max_tokens=max_new_tokens
         )
+
         # output = self.llm(
         #     prompt,
         #     max_tokens=max_new_tokens,
@@ -132,7 +153,11 @@ class LLMAnswer:
         # )
 
         # Extract only the generated text from the model output
-        answer_text = output["choices"][0]["text"].strip()  # type: ignore
+        answer_text = output['choices'][0]['message']['content'].split('</think>')[-1].strip()  # type: ignore
+        # print(answer_text)
+        # print(json.dumps(output, indent=4))
+        # import sys
+        # sys.exit(1)
 
         self._minimal_answer_list.append(MinimalAnswer(
             question_id=search_result.question_id,

@@ -78,6 +78,7 @@ fclean: clean ## cleanに加えて仮想環境も削除
 	@rm -rf data
 	@rm -rf moulinette_pkg
 	@rm -rf datasets_public.zip vllm-0.10.1.zip moulinette.zip
+	@rm -rf datasets_public evaluations exams exams_pkg private vllm-0.10.1
 	@echo "Full Clean complete."
 
 re: fclean all
